@@ -6,6 +6,7 @@ import { useChatStore } from '@/stores/chatStore';
 import ChatSessionTabs from './ChatSessionTabs';
 import ChatView from './ChatView';
 import FilePanel from './FilePanel';
+import AgentConfigPanel from './AgentConfigPanel';
 import './ProjectSession.css';
 
 export default function ProjectSession() {
@@ -13,6 +14,7 @@ export default function ProjectSession() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeSessionId, setActiveSession } = useChatStore();
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
 
   // Fetch project
   const { data: project, isLoading: isLoadingProject } = useQuery({
@@ -61,9 +63,18 @@ export default function ProjectSession() {
   return (
     <div className="project-session">
       <div className="project-session-header">
-        <button className="back-btn" onClick={handleBackToProjects}>
-          ← Back to Projects
-        </button>
+        <div className="header-top">
+          <button className="back-btn" onClick={handleBackToProjects}>
+            ← Back to Projects
+          </button>
+          <button
+            className="settings-btn"
+            onClick={() => setShowConfigPanel(true)}
+            title="Agent Configuration"
+          >
+            ⚙️
+          </button>
+        </div>
         <h1>{project.name}</h1>
         {project.description && (
           <p className="project-desc">{project.description}</p>
@@ -102,6 +113,25 @@ export default function ProjectSession() {
 
         <FilePanel projectId={projectId!} />
       </div>
+
+      {/* Agent Configuration Overlay */}
+      {showConfigPanel && (
+        <div className="config-overlay" onClick={() => setShowConfigPanel(false)}>
+          <div className="config-panel-container" onClick={(e) => e.stopPropagation()}>
+            <div className="config-panel-header">
+              <h2>Agent Configuration</h2>
+              <button
+                className="close-btn"
+                onClick={() => setShowConfigPanel(false)}
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <AgentConfigPanel projectId={projectId!} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

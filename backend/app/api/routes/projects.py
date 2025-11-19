@@ -188,3 +188,90 @@ async def update_agent_config(
     await db.refresh(config)
 
     return AgentConfigurationResponse.model_validate(config)
+
+
+# Agent template endpoints
+@router.get("/templates/list", response_model=list)
+async def list_agent_templates():
+    """List all available agent templates."""
+    from app.core.agent.templates import list_templates
+
+    templates = list_templates()
+    return [
+        {
+            "id": t.id,
+            "name": t.name,
+            "description": t.description,
+            "agent_type": t.agent_type,
+            "environment_type": t.environment_type,
+            "enabled_tools": t.enabled_tools,
+        }
+        for t in templates
+    ]
+
+
+@router.get("/templates/{template_id}", response_model=dict)
+async def get_agent_template(template_id: str):
+    """Get a specific agent template configuration."""
+    from app.core.agent.templates import get_template
+
+    template = get_template(template_id)
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template {template_id} not found"
+        )
+
+    return template.model_dump()
+
+
+@router.post("/{project_id}/agent-config/apply-template/{template_id}",
+             response_model=AgentConfigurationResponse)
+async def apply_agent_template(
+    project_id: str,
+    template_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Apply an agent template to a project's configuration."""
+    from app.core.agent.templates import get_template_config
+
+    # Get template config
+    template_config = get_template_config(template_id)
+    if not template_config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template {template_id} not found"
+        )
+
+    # Verify project exists
+    project_query = select(Project).where(Project.id == project_id)
+    project_result = await db.execute(project_query)
+    project = project_result.scalar_one_or_none()
+
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project with id {project_id} not found",
+        )
+
+    # Get or create agent configuration
+    config_query = select(AgentConfiguration).where(
+        AgentConfiguration.project_id == project_id
+    )
+    config_result = await db.execute(config_query)
+    config = config_result.scalar_one_or_none()
+
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent configuration for project {project_id} not found"
+        )
+
+    # Apply template configuration
+    for field, value in template_config.items():
+        setattr(config, field, value)
+
+    await db.commit()
+    await db.refresh(config)
+
+    return AgentConfigurationResponse.model_validate(config)

@@ -1,0 +1,397 @@
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { projectsAPI } from '@/services/api';
+import './AgentConfigPanel.css';
+
+interface AgentConfigPanelProps {
+  projectId: string;
+}
+
+interface AgentTemplate {
+  id: string;
+  name: string;
+  description: string;
+  agent_type: string;
+  environment_type: string;
+  enabled_tools: string[];
+}
+
+interface AgentConfig {
+  agent_type: string;
+  system_instructions: string | null;
+  environment_type: string;
+  environment_config: Record<string, any>;
+  enabled_tools: string[];
+  llm_provider: string;
+  llm_model: string;
+  llm_config: Record<string, any>;
+}
+
+const AVAILABLE_TOOLS = [
+  { id: 'bash', name: 'Bash', description: 'Execute shell commands' },
+  { id: 'file_read', name: 'File Read', description: 'Read file contents' },
+  { id: 'file_write', name: 'File Write', description: 'Create/overwrite files' },
+  { id: 'file_edit', name: 'File Edit', description: 'Edit existing files' },
+];
+
+const ENVIRONMENT_TYPES = [
+  { id: 'python3.11', name: 'Python 3.11', description: 'Python 3.11 with common packages' },
+  { id: 'python3.12', name: 'Python 3.12', description: 'Python 3.12 with common packages' },
+  { id: 'node20', name: 'Node.js 20', description: 'Node.js 20 with TypeScript' },
+];
+
+const LLM_PROVIDERS = [
+  { id: 'openai', name: 'OpenAI', models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
+  { id: 'anthropic', name: 'Anthropic', models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'] },
+  { id: 'azure', name: 'Azure OpenAI', models: ['gpt-4', 'gpt-35-turbo'] },
+];
+
+export default function AgentConfigPanel({ projectId }: AgentConfigPanelProps) {
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'general' | 'tools' | 'instructions' | 'templates'>('general');
+
+  // Local state for form
+  const [formData, setFormData] = useState<Partial<AgentConfig>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Fetch agent configuration
+  const { data: config, isLoading } = useQuery({
+    queryKey: ['agentConfig', projectId],
+    queryFn: () => projectsAPI.getAgentConfig(projectId),
+  });
+
+  // Fetch templates
+  const { data: templates } = useQuery({
+    queryKey: ['agentTemplates'],
+    queryFn: () => projectsAPI.listAgentTemplates(),
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: (data: Partial<AgentConfig>) =>
+      projectsAPI.updateAgentConfig(projectId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agentConfig', projectId] });
+      setHasChanges(false);
+    },
+  });
+
+  // Apply template mutation
+  const applyTemplateMutation = useMutation({
+    mutationFn: (templateId: string) =>
+      projectsAPI.applyAgentTemplate(projectId, templateId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agentConfig', projectId] });
+      setHasChanges(false);
+    },
+  });
+
+  // Initialize form data from config
+  useEffect(() => {
+    if (config) {
+      setFormData({
+        agent_type: config.agent_type,
+        system_instructions: config.system_instructions,
+        environment_type: config.environment_type,
+        environment_config: config.environment_config || {},
+        enabled_tools: config.enabled_tools || [],
+        llm_provider: config.llm_provider,
+        llm_model: config.llm_model,
+        llm_config: config.llm_config || {},
+      });
+    }
+  }, [config]);
+
+  const handleFieldChange = (field: keyof AgentConfig, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setHasChanges(true);
+  };
+
+  const handleToolToggle = (toolId: string) => {
+    const currentTools = formData.enabled_tools || [];
+    const newTools = currentTools.includes(toolId)
+      ? currentTools.filter(t => t !== toolId)
+      : [...currentTools, toolId];
+    handleFieldChange('enabled_tools', newTools);
+  };
+
+  const handleSave = () => {
+    updateMutation.mutate(formData);
+  };
+
+  const handleReset = () => {
+    if (config) {
+      setFormData({
+        agent_type: config.agent_type,
+        system_instructions: config.system_instructions,
+        environment_type: config.environment_type,
+        environment_config: config.environment_config || {},
+        enabled_tools: config.enabled_tools || [],
+        llm_provider: config.llm_provider,
+        llm_model: config.llm_model,
+        llm_config: config.llm_config || {},
+      });
+      setHasChanges(false);
+    }
+  };
+
+  const handleApplyTemplate = (templateId: string) => {
+    if (confirm(`Apply template? This will override current configuration.`)) {
+      applyTemplateMutation.mutate(templateId);
+    }
+  };
+
+  const getSelectedProviderModels = () => {
+    const provider = LLM_PROVIDERS.find(p => p.id === formData.llm_provider);
+    return provider?.models || [];
+  };
+
+  if (isLoading) {
+    return <div className="agent-config-panel loading">Loading configuration...</div>;
+  }
+
+  return (
+    <div className="agent-config-panel">
+      <div className="panel-header">
+        <h3>Agent Configuration</h3>
+        {hasChanges && (
+          <div className="unsaved-indicator">
+            <span className="dot"></span>
+            Unsaved changes
+          </div>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="config-tabs">
+        <button
+          className={`tab ${activeTab === 'general' ? 'active' : ''}`}
+          onClick={() => setActiveTab('general')}
+        >
+          General
+        </button>
+        <button
+          className={`tab ${activeTab === 'tools' ? 'active' : ''}`}
+          onClick={() => setActiveTab('tools')}
+        >
+          Tools
+        </button>
+        <button
+          className={`tab ${activeTab === 'instructions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('instructions')}
+        >
+          Instructions
+        </button>
+        <button
+          className={`tab ${activeTab === 'templates' ? 'active' : ''}`}
+          onClick={() => setActiveTab('templates')}
+        >
+          Templates
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      <div className="tab-content">
+        {activeTab === 'general' && (
+          <div className="general-tab">
+            {/* Environment */}
+            <div className="form-section">
+              <label className="section-label">Environment</label>
+              <div className="environment-grid">
+                {ENVIRONMENT_TYPES.map(env => (
+                  <div
+                    key={env.id}
+                    className={`environment-card ${formData.environment_type === env.id ? 'selected' : ''}`}
+                    onClick={() => handleFieldChange('environment_type', env.id)}
+                  >
+                    <div className="env-name">{env.name}</div>
+                    <div className="env-description">{env.description}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* LLM Provider */}
+            <div className="form-section">
+              <label className="section-label">LLM Provider</label>
+              <select
+                className="select-input"
+                value={formData.llm_provider || 'openai'}
+                onChange={(e) => {
+                  handleFieldChange('llm_provider', e.target.value);
+                  // Reset model when provider changes
+                  const provider = LLM_PROVIDERS.find(p => p.id === e.target.value);
+                  if (provider) {
+                    handleFieldChange('llm_model', provider.models[0]);
+                  }
+                }}
+              >
+                {LLM_PROVIDERS.map(provider => (
+                  <option key={provider.id} value={provider.id}>
+                    {provider.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* LLM Model */}
+            <div className="form-section">
+              <label className="section-label">Model</label>
+              <select
+                className="select-input"
+                value={formData.llm_model || 'gpt-4'}
+                onChange={(e) => handleFieldChange('llm_model', e.target.value)}
+              >
+                {getSelectedProviderModels().map(model => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* LLM Settings */}
+            <div className="form-section">
+              <label className="section-label">Temperature</label>
+              <div className="slider-container">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={formData.llm_config?.temperature || 0.7}
+                  onChange={(e) => handleFieldChange('llm_config', {
+                    ...formData.llm_config,
+                    temperature: parseFloat(e.target.value)
+                  })}
+                  className="slider"
+                />
+                <span className="slider-value">
+                  {formData.llm_config?.temperature || 0.7}
+                </span>
+              </div>
+              <p className="field-description">
+                Lower values make output more focused, higher values more creative
+              </p>
+            </div>
+
+            <div className="form-section">
+              <label className="section-label">Max Tokens</label>
+              <input
+                type="number"
+                className="text-input"
+                value={formData.llm_config?.max_tokens || 4096}
+                onChange={(e) => handleFieldChange('llm_config', {
+                  ...formData.llm_config,
+                  max_tokens: parseInt(e.target.value)
+                })}
+                min="256"
+                max="8192"
+                step="256"
+              />
+              <p className="field-description">
+                Maximum response length (higher values = longer responses)
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'tools' && (
+          <div className="tools-tab">
+            <p className="tab-description">
+              Enable or disable tools that the agent can use. More tools give more capabilities but may increase costs.
+            </p>
+            <div className="tools-grid">
+              {AVAILABLE_TOOLS.map(tool => (
+                <div
+                  key={tool.id}
+                  className={`tool-card ${formData.enabled_tools?.includes(tool.id) ? 'enabled' : 'disabled'}`}
+                  onClick={() => handleToolToggle(tool.id)}
+                >
+                  <div className="tool-header">
+                    <input
+                      type="checkbox"
+                      checked={formData.enabled_tools?.includes(tool.id) || false}
+                      onChange={() => handleToolToggle(tool.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span className="tool-name">{tool.name}</span>
+                  </div>
+                  <p className="tool-description">{tool.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'instructions' && (
+          <div className="instructions-tab">
+            <label className="section-label">System Instructions</label>
+            <p className="tab-description">
+              Custom instructions that guide the agent's behavior and personality.
+            </p>
+            <textarea
+              className="instructions-textarea"
+              value={formData.system_instructions || ''}
+              onChange={(e) => handleFieldChange('system_instructions', e.target.value)}
+              placeholder="Enter custom system instructions for the agent..."
+              rows={15}
+            />
+            <p className="field-description">
+              Examples: "You are a senior Python developer", "Focus on performance optimization", "Write detailed comments"
+            </p>
+          </div>
+        )}
+
+        {activeTab === 'templates' && (
+          <div className="templates-tab">
+            <p className="tab-description">
+              Quick-start templates with pre-configured settings for common use cases.
+            </p>
+            <div className="templates-grid">
+              {templates?.map((template: AgentTemplate) => (
+                <div key={template.id} className="template-card">
+                  <div className="template-header">
+                    <h4>{template.name}</h4>
+                    <span className="template-env">{template.environment_type}</span>
+                  </div>
+                  <p className="template-description">{template.description}</p>
+                  <div className="template-tools">
+                    {template.enabled_tools.map(tool => (
+                      <span key={tool} className="tool-badge">{tool}</span>
+                    ))}
+                  </div>
+                  <button
+                    className="apply-template-btn"
+                    onClick={() => handleApplyTemplate(template.id)}
+                    disabled={applyTemplateMutation.isPending}
+                  >
+                    {applyTemplateMutation.isPending ? 'Applying...' : 'Apply Template'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="panel-footer">
+        <button
+          className="btn-secondary"
+          onClick={handleReset}
+          disabled={!hasChanges}
+        >
+          Reset
+        </button>
+        <button
+          className="btn-primary"
+          onClick={handleSave}
+          disabled={!hasChanges || updateMutation.isPending}
+        >
+          {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </div>
+  );
+}

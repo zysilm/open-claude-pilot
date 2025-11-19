@@ -16,7 +16,8 @@
       "Bash(python -c \"\nfrom app.core.agent.tools import Tool, ToolRegistry, BashTool, FileReadTool, FileWriteTool, FileEditTool\nfrom app.core.agent.executor import ReActAgent\nprint(''✓ All agent imports successful'')\n\")",
       "Bash(python /tmp/test_agent_system.py:*)",
       "Bash(python -c:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(python /tmp/test_phase5_agent_config.py:*)"
     ],
     "deny": [],
     "ask": []

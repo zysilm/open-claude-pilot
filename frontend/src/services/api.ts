@@ -64,6 +64,23 @@ export const projectsAPI = {
     );
     return data;
   },
+
+  listAgentTemplates: async (): Promise<any[]> => {
+    const { data } = await api.get<any[]>('/projects/templates/list');
+    return data;
+  },
+
+  getAgentTemplate: async (templateId: string): Promise<any> => {
+    const { data } = await api.get<any>(`/projects/templates/${templateId}`);
+    return data;
+  },
+
+  applyAgentTemplate: async (projectId: string, templateId: string): Promise<AgentConfiguration> => {
+    const { data } = await api.post<AgentConfiguration>(
+      `/projects/${projectId}/agent-config/apply-template/${templateId}`
+    );
+    return data;
+  },
 };
 
 // Chat Sessions API

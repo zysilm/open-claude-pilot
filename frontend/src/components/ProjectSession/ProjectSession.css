@@ -12,18 +12,39 @@
   background-color: #2a2a2a;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
 .back-btn {
   padding: 8px 16px;
   background-color: #3a3a3a;
   color: #e0e0e0;
   border-radius: 6px;
   font-size: 14px;
-  margin-bottom: 12px;
   transition: background-color 0.2s;
 }
 
 .back-btn:hover {
   background-color: #4a4a4a;
+}
+
+.settings-btn {
+  padding: 8px 16px;
+  background-color: #3a3a3a;
+  color: #e0e0e0;
+  border-radius: 6px;
+  font-size: 18px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.settings-btn:hover {
+  background-color: #4a4a4a;
+  transform: rotate(45deg);
 }
 
 .project-session-header h1 {
@@ -118,4 +139,88 @@
 
 .error {
   color: #ff6b6b;
+}
+
+/* Config Overlay */
+.config-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.config-panel-container {
+  width: 90%;
+  max-width: 1000px;
+  height: 85vh;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.config-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.config-panel-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 6px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  background: #e5e7eb;
+  color: #111827;
 }
