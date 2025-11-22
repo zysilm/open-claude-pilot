@@ -174,16 +174,19 @@ async def list_messages(
     total_result = await db.execute(count_query)
     total = total_result.scalar_one()
 
-    # Get messages
+    # Get messages with agent actions
+    from sqlalchemy.orm import joinedload
+
     query = (
         select(Message)
+        .options(joinedload(Message.agent_actions))  # Eagerly load agent actions
         .where(Message.chat_session_id == session_id)
         .offset(skip)
         .limit(limit)
         .order_by(Message.created_at.asc())
     )
     result = await db.execute(query)
-    messages = result.scalars().all()
+    messages = result.unique().scalars().all()
 
     return MessageListResponse(
         messages=[MessageResponse.model_validate(m) for m in messages],

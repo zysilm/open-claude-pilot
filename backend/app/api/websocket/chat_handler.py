@@ -517,20 +517,46 @@ class ChatWebSocketHandler:
                 })
 
     async def _get_conversation_history(self, session_id: str) -> list[Dict[str, str]]:
-        """Get conversation history for a session."""
+        """Get conversation history for a session, including agent actions."""
+        from sqlalchemy.orm import joinedload
+
         query = (
             select(Message)
+            .options(joinedload(Message.agent_actions))  # Eagerly load agent actions
             .where(Message.chat_session_id == session_id)
             .order_by(Message.created_at.asc())
         )
         result = await self.db.execute(query)
-        messages = result.scalars().all()
+        messages = result.unique().scalars().all()
 
         history = []
         for msg in messages:
+            # Add the main message
             history.append({
                 "role": msg.role.value,
                 "content": msg.content
             })
+
+            # If this is an assistant message with agent actions, include them in the history
+            # This ensures the LLM remembers what tools it used and what the results were
+            if msg.role == MessageRole.ASSISTANT and msg.agent_actions:
+                for action in msg.agent_actions:
+                    # Add function call representation
+                    # This shows the LLM what tool was called with what arguments
+                    history.append({
+                        "role": "assistant",
+                        "content": f"Using tool: {action.action_type}",
+                        "tool_call": {
+                            "name": action.action_type,
+                            "arguments": action.action_input
+                        }
+                    })
+
+                    # Add function result
+                    # Tool results are sent as user messages in GPT-5 format
+                    history.append({
+                        "role": "user",
+                        "content": f"Tool '{action.action_type}' returned: {action.action_output}"
+                    })
 
         return history

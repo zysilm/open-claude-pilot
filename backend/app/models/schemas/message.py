@@ -1,10 +1,11 @@
 """Message schemas for API validation."""
 
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 from pydantic import BaseModel, Field
 
 from app.models.database.message import MessageRole
+from app.models.database.agent_action import AgentActionStatus
 
 
 class MessageBase(BaseModel):
@@ -18,12 +19,26 @@ class MessageCreate(MessageBase):
     role: MessageRole = MessageRole.USER
 
 
+class AgentActionResponse(BaseModel):
+    """Schema for agent action response."""
+    id: str
+    action_type: str
+    action_input: Dict[str, Any]
+    action_output: Dict[str, Any] | None
+    status: AgentActionStatus
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class MessageResponse(MessageBase):
     """Schema for message response."""
     id: str
     chat_session_id: str
     role: MessageRole
     created_at: datetime
+    agent_actions: List[AgentActionResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

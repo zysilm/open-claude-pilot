@@ -239,7 +239,37 @@ export default function ChatSessionPage() {
                     )}
                   </div>
                   <div className="message-text">
-                    {/* Show agent actions inline for assistant messages */}
+                    {/* Show persisted agent actions from database for all assistant messages */}
+                    {message.role === 'assistant' && message.agent_actions && message.agent_actions.length > 0 && (
+                      <div className="agent-actions-inline">
+                        {message.agent_actions.map((action: any, idx: number) => (
+                          <div key={idx} className="action-block action-action">
+                            <div className="action-usage">
+                              <div className="action-header">
+                                <span className="action-icon">🔧</span>
+                                <strong>Used {action.action_type}</strong>
+                              </div>
+                              {action.action_input && (
+                                <pre className="action-args">{JSON.stringify(action.action_input, null, 2)}</pre>
+                              )}
+                              {action.action_output && (
+                                <div className={`observation ${action.status === 'success' ? 'success' : 'error'}`}>
+                                  <div className="observation-header">
+                                    <span className="observation-icon">
+                                      {action.status === 'success' ? '✅' : '❌'}
+                                    </span>
+                                    <strong>Result</strong>
+                                  </div>
+                                  <pre className="observation-content">{JSON.stringify(action.action_output, null, 2)}</pre>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Show real-time agent actions for the last streaming message */}
                     {message.role === 'assistant' && agentActions && agentActions.length > 0 && index === messages.length - 1 && (
                       <div className="agent-actions-inline">
                         {agentActions.map((action, idx) => (
