@@ -359,8 +359,18 @@ class ChatWebSocketHandler:
                     }
                     agent_actions[-1]["status"] = "success" if success else "error"
 
+            elif event_type == "chunk":
+                # Agent is streaming final answer chunks
+                chunk = event.get("content", "")
+                assistant_content += chunk
+                # Forward chunk to frontend
+                await self.websocket.send_json({
+                    "type": "chunk",
+                    "content": chunk
+                })
+
             elif event_type == "final_answer":
-                # Agent has completed the task
+                # Agent has completed the task (legacy - now using chunks)
                 answer = event.get("content", "")
                 assistant_content += answer
                 print(f"[AGENT] Final Answer: {answer[:100]}...")

@@ -312,7 +312,7 @@ export default function AgentConfigPanel({ projectId }: AgentConfigPanelProps) {
                     <input
                       type="number"
                       className="text-input"
-                      value={formData.llm_config?.max_tokens ?? 8192}
+                      value={formData.llm_config?.max_tokens ?? 16384}
                       onChange={(e) => handleFieldChange('llm_config', {
                         ...formData.llm_config,
                         max_tokens: parseInt(e.target.value)
@@ -322,7 +322,7 @@ export default function AgentConfigPanel({ projectId }: AgentConfigPanelProps) {
                       step="256"
                     />
                     <p className="field-description">
-                      Maximum response length (higher values = longer responses). Default: 8192
+                      Maximum response length. Default: 16384 (Claude: up to 64K, GPT-5: up to 128K)
                     </p>
                   </div>
                 </div>

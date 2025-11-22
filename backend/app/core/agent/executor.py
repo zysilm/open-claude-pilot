@@ -142,17 +142,17 @@ Available tools will be provided as function calling options. Use them to accomp
                         full_response += chunk
                         if chunk_count <= 3:  # Only print first few chunks
                             print(f"[REACT AGENT] Text chunk #{chunk_count}: {chunk[:50]}...")
-                        yield {
-                            "type": "thought",
-                            "content": chunk,
-                            "step": iteration + 1,
-                        }
+                        # Don't yield chunks here - we'll yield them after we know if it's a function call or final answer
                     # Handle function call (if LLM returns structured data)
                     elif isinstance(chunk, dict) and "function_call" in chunk:
                         print(f"[REACT AGENT] Function call chunk: {chunk}")
                         function_call = chunk["function_call"]
-                        function_name = function_call.get("name")
-                        function_args = function_call.get("arguments", "{}")
+                        # IMPORTANT: Only set function_name if it's not None (preserve from first chunk)
+                        if function_call.get("name") is not None:
+                            function_name = function_call.get("name")
+                        # Accumulate arguments from all chunks
+                        if function_call.get("arguments"):
+                            function_args += function_call.get("arguments", "")
 
                 print(f"[REACT AGENT] Stream complete. Total chunks: {chunk_count}")
                 print(f"[REACT AGENT] Full response length: {len(full_response)}")
@@ -161,6 +161,15 @@ Available tools will be provided as function calling options. Use them to accomp
                 # Check if LLM wants to call a function
                 if function_name and self.tools.has_tool(function_name):
                     print(f"[REACT AGENT] Executing function: {function_name}")
+
+                    # Emit thought if there was reasoning text before the function call
+                    if full_response:
+                        yield {
+                            "type": "thought",
+                            "content": full_response,
+                            "step": iteration + 1,
+                        }
+
                     # Parse function arguments
                     try:
                         args = json.loads(function_args) if isinstance(function_args, str) else function_args
@@ -218,11 +227,18 @@ Available tools will be provided as function calling options. Use them to accomp
                 if full_response:
                     print(f"[REACT AGENT] No function call - providing final answer")
                     print(f"[REACT AGENT] Final answer: {full_response[:100]}...")
-                    yield {
-                        "type": "final_answer",
-                        "content": full_response,
-                        "step": iteration + 1,
-                    }
+
+                    # Stream final answer as chunks (word by word) for better UX
+                    # Split by words to simulate streaming
+                    words = full_response.split(' ')
+                    for i, word in enumerate(words):
+                        # Add space before word (except first word)
+                        chunk = (' ' + word) if i > 0 else word
+                        yield {
+                            "type": "chunk",
+                            "content": chunk,
+                            "step": iteration + 1,
+                        }
 
                     return
 

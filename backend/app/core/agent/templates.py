@@ -30,12 +30,12 @@ AGENT_TEMPLATES = {
         environment_config={
             "packages": ["requests", "pandas", "numpy", "pytest"]
         },
-        enabled_tools=["bash", "file_read", "file_write", "file_edit"],
+        enabled_tools=["bash", "file_read", "file_write", "file_edit", "search"],
         llm_provider="openai",
         llm_model="gpt-4",
         llm_config={
             "temperature": 0.7,
-            "max_tokens": 4096
+            "max_tokens": 16384
         },
         system_instructions="""You are an expert Python developer assistant. Your role is to help write, test, and debug Python code.
 
@@ -63,12 +63,12 @@ Best practices:
         environment_config={
             "packages": ["typescript", "eslint", "jest"]
         },
-        enabled_tools=["bash", "file_read", "file_write", "file_edit"],
+        enabled_tools=["bash", "file_read", "file_write", "file_edit", "search"],
         llm_provider="openai",
         llm_model="gpt-4",
         llm_config={
             "temperature": 0.7,
-            "max_tokens": 4096
+            "max_tokens": 16384
         },
         system_instructions="""You are an expert Node.js developer assistant. Your role is to help with JavaScript and TypeScript development.
 
@@ -96,12 +96,12 @@ Best practices:
         environment_config={
             "packages": ["pandas", "numpy", "matplotlib", "seaborn", "jupyter", "scikit-learn"]
         },
-        enabled_tools=["bash", "file_read", "file_write", "file_edit"],
+        enabled_tools=["bash", "file_read", "file_write", "file_edit", "search"],
         llm_provider="openai",
         llm_model="gpt-4",
         llm_config={
             "temperature": 0.5,
-            "max_tokens": 4096
+            "max_tokens": 16384
         },
         system_instructions="""You are an expert data analyst assistant. Your role is to help analyze data, create visualizations, and derive insights.
 
@@ -129,12 +129,12 @@ Best practices:
         environment_config={
             "packages": ["requests", "beautifulsoup4", "selenium"]
         },
-        enabled_tools=["bash", "file_read", "file_write"],  # No file_edit for safety
+        enabled_tools=["bash", "file_read", "file_write", "search"],  # No file_edit for safety
         llm_provider="openai",
         llm_model="gpt-4",
         llm_config={
             "temperature": 0.6,
-            "max_tokens": 4096
+            "max_tokens": 16384
         },
         system_instructions="""You are an automation and scripting specialist. Your role is to create scripts for automation, data collection, and system tasks.
 
@@ -160,12 +160,12 @@ Best practices:
         agent_type="code_agent",
         environment_type="python3.11",
         environment_config={},
-        enabled_tools=["bash", "file_read"],  # Read-only for safety
+        enabled_tools=["bash", "file_read", "search"],  # Read-only for safety
         llm_provider="openai",
         llm_model="gpt-4",
         llm_config={
             "temperature": 0.3,
-            "max_tokens": 4096
+            "max_tokens": 16384
         },
         system_instructions="""You are a code review specialist. Your role is to analyze code quality, identify issues, and suggest improvements.
 
@@ -196,12 +196,12 @@ Provide specific, actionable feedback with examples."""
         environment_config={
             "packages": ["pytest", "pytest-cov", "pytest-mock"]
         },
-        enabled_tools=["bash", "file_read", "file_write", "file_edit"],
+        enabled_tools=["bash", "file_read", "file_write", "file_edit", "search"],
         llm_provider="openai",
         llm_model="gpt-4",
         llm_config={
             "temperature": 0.5,
-            "max_tokens": 4096
+            "max_tokens": 16384
         },
         system_instructions="""You are a test writing specialist. Your role is to create comprehensive test suites for code.
 
@@ -228,14 +228,31 @@ Best practices:
         agent_type="code_agent",
         environment_type="python3.11",
         environment_config={},
-        enabled_tools=["bash", "file_read"],
+        enabled_tools=["bash", "file_read", "search"],
         llm_provider="openai",
         llm_model="gpt-4",
         llm_config={
             "temperature": 0.7,
-            "max_tokens": 2048
+            "max_tokens": 16384
         },
         system_instructions="You are a helpful coding assistant. Be concise and clear in your responses."
+    ),
+
+    "default": AgentTemplate(
+        id="default",
+        name="Default",
+        description="Default configuration with API defaults for temperature and max_tokens",
+        agent_type="code_agent",
+        environment_type="python3.11",
+        environment_config={},
+        enabled_tools=["bash", "file_read", "file_write", "file_edit", "search"],
+        llm_provider="openai",
+        llm_model="gpt-5-2025-08-07",
+        llm_config={
+            "temperature": 1.0,
+            "max_tokens": 16384
+        },
+        system_instructions="You are a helpful coding assistant. Help users write, debug, and improve their code."
     ),
 }
 

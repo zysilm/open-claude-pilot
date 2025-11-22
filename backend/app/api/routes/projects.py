@@ -66,7 +66,7 @@ async def create_project(
         enabled_tools=["bash", "file_read", "file_write", "file_edit", "search"],
         llm_provider="openai",
         llm_model="gpt-5-2025-08-07",  # Latest OpenAI model (GPT-5)
-        llm_config={"temperature": 0.7, "max_tokens": 4096},
+        llm_config={"temperature": 1.0, "max_tokens": 16384},
     )
     db.add(agent_config)
     await db.commit()
