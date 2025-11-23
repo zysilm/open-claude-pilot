@@ -151,6 +151,21 @@
   margin-bottom: 20px;
 }
 
+/* Streaming Content - for unified stream events */
+.streaming-content {
+  /* No centering - content flows naturally */
+}
+
+.streaming-content .streaming-cursor {
+  color: #2563eb;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
 .action-block {
   margin-bottom: 16px;
   border-radius: 8px;

@@ -393,7 +393,7 @@ export default function ChatSessionPage() {
 
                     {/* Show unified stream for the last streaming message */}
                     {message.role === 'assistant' && index === messages.length - 1 && streamEvents && streamEvents.length > 0 && (
-                      <div className="message-body">
+                      <div className="streaming-content">
                         {streamEvents
                           // Filter to show clean streaming experience
                           .filter((event, idx, arr) => {
