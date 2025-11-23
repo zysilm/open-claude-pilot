@@ -8,7 +8,14 @@ import './ChatSessionPage.css';
 export default function ChatSessionPage() {
   const { projectId, sessionId } = useParams<{ projectId: string; sessionId: string }>();
   const navigate = useNavigate();
-  const { agentActions, addAgentAction, clearAgentActions } = useChatStore();
+  const {
+    agentActions,
+    addAgentAction,
+    clearAgentActions,
+    streamEvents,
+    addStreamEvent,
+    clearStreamEvents
+  } = useChatStore();
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
@@ -103,6 +110,7 @@ export default function ChatSessionPage() {
         console.log('[ChatSessionPage] START event - setting isSending to TRUE');
         setIsSending(true); // Enable stop button
         clearAgentActions();
+        clearStreamEvents(); // Clear unified stream
         setMessages((prev) => [
           ...prev,
           {
@@ -116,46 +124,60 @@ export default function ChatSessionPage() {
         console.log('[ChatSessionPage] Response cancelled');
         setIsSending(false);
       } else if (data.type === 'thought') {
-        addAgentAction({
-          type: 'thought',
+        const thought = {
+          type: 'thought' as const,
           content: data.content,
           step: data.step,
-        });
+        };
+        addAgentAction(thought);
+        addStreamEvent(thought);
       } else if (data.type === 'action_streaming') {
         console.log('[ChatSessionPage] ACTION_STREAMING received:', data);
-        addAgentAction({
-          type: 'action_streaming',
+        const streamingAction = {
+          type: 'action_streaming' as const,
           content: `Preparing ${data.tool}...`,
           tool: data.tool,
           status: data.status,
           step: data.step,
-        });
+        };
+        addAgentAction(streamingAction);
+        addStreamEvent(streamingAction);
       } else if (data.type === 'action_args_chunk') {
         console.log('[ChatSessionPage] ACTION_ARGS_CHUNK received:', data);
-        // Add the chunk as an action so it triggers re-render
-        addAgentAction({
-          type: 'action_args_chunk',
+        const argsChunk = {
+          type: 'action_args_chunk' as const,
           content: data.partial_args || '',
           tool: data.tool,
           partial_args: data.partial_args,
           step: data.step,
-        });
+        };
+        addAgentAction(argsChunk);
+        addStreamEvent(argsChunk);
       } else if (data.type === 'action') {
-        addAgentAction({
-          type: 'action',
+        const action = {
+          type: 'action' as const,
           content: `Using tool: ${data.tool}`,
           tool: data.tool,
           args: data.args,
           step: data.step,
-        });
+        };
+        addAgentAction(action);
+        addStreamEvent(action);
       } else if (data.type === 'observation') {
-        addAgentAction({
-          type: 'observation',
+        const observation = {
+          type: 'observation' as const,
           content: data.content,
           success: data.success,
           step: data.step,
-        });
+        };
+        addAgentAction(observation);
+        addStreamEvent(observation);
       } else if (data.type === 'chunk') {
+        // Add chunk to unified stream
+        addStreamEvent({
+          type: 'chunk',
+          content: data.content,
+        });
         // Update the last message with new content
         setMessages((prev) => {
           const newMessages = [...prev];
@@ -231,6 +253,62 @@ export default function ChatSessionPage() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  // Render a single stream event
+  const renderStreamEvent = (event: any, index: number) => {
+    switch (event.type) {
+      case 'chunk':
+        return <span key={index}>{event.content}</span>;
+
+      case 'thought':
+        return (
+          <details key={index} className="thought-details" open>
+            <summary>💭 Thinking... (Step {event.step})</summary>
+            <div className="thought-content">{event.content}</div>
+          </details>
+        );
+
+      case 'action_args_chunk':
+        return (
+          <div key={index} className="action-usage args-streaming">
+            <div className="action-header">
+              <span className="action-icon">📝</span>
+              <strong>{event.tool}</strong>
+            </div>
+            <pre className="action-args partial">{event.partial_args || event.content}</pre>
+          </div>
+        );
+
+      case 'action':
+        return (
+          <div key={index} className="action-usage">
+            <div className="action-header">
+              <span className="action-icon">🔧</span>
+              <strong>Using {event.tool}</strong>
+            </div>
+            {event.args && (
+              <pre className="action-args">{JSON.stringify(event.args, null, 2)}</pre>
+            )}
+          </div>
+        );
+
+      case 'observation':
+        return (
+          <div key={index} className={`observation ${event.success ? 'success' : 'error'}`}>
+            <div className="observation-header">
+              <span className="observation-icon">
+                {event.success ? '✅' : '❌'}
+              </span>
+              <strong>Result</strong>
+            </div>
+            <pre className="observation-content">{event.content}</pre>
+          </div>
+        );
+
+      default:
+        return null;
     }
   };
 
@@ -313,88 +391,49 @@ export default function ChatSessionPage() {
                       ) : null;
                     })()}
 
-                    {/* Show real-time agent actions for the last streaming message */}
-                    {message.role === 'assistant' && agentActions && agentActions.length > 0 && index === messages.length - 1 && (
-                      <div className="agent-actions-inline">
-                        {agentActions
+                    {/* Show unified stream for the last streaming message */}
+                    {message.role === 'assistant' && index === messages.length - 1 && streamEvents && streamEvents.length > 0 && (
+                      <div className="message-body">
+                        {streamEvents
                           // Filter to show clean streaming experience
-                          .filter((action, idx, arr) => {
-                            // Always hide action_streaming - we don't need the "Preparing..." indicator
-                            if (action.type === 'action_streaming') {
+                          .filter((event, idx, arr) => {
+                            // Always hide action_streaming
+                            if (event.type === 'action_streaming') {
                               return false;
                             }
 
                             // Hide action_args_chunk if we have action for the same tool
-                            if (action.type === 'action_args_chunk') {
+                            if (event.type === 'action_args_chunk') {
                               const hasAction = arr.find(
-                                a => a.type === 'action' && a.tool === action.tool
+                                e => e.type === 'action' && e.tool === event.tool
                               );
-                              if (hasAction) return false; // Hide chunk once action arrives
+                              if (hasAction) return false;
 
-                              // Otherwise show only the LAST chunk for this tool
+                              // Show only the LAST chunk for this tool
                               const laterChunk = arr.slice(idx + 1).find(
-                                a => a.type === 'action_args_chunk' && a.tool === action.tool
+                                e => e.type === 'action_args_chunk' && e.tool === event.tool
                               );
                               return !laterChunk;
                             }
 
-                            return true; // Keep all other action types
+                            return true;
                           })
-                          .map((action, idx) => (
-                          <div key={idx} className={`action-block action-${action.type}`}>
-                            {action.type === 'thought' && (
-                              <details className="thought-details" open>
-                                <summary>💭 Thinking... (Step {action.step})</summary>
-                                <div className="thought-content">{action.content}</div>
-                              </details>
-                            )}
-                            {action.type === 'action_streaming' && (
-                              <div className="action-usage streaming">
-                                <div className="action-header">
-                                  <span className="action-icon">⏳</span>
-                                  <strong>Preparing {action.tool}...</strong>
-                                  <span className="status-badge">{action.status}</span>
-                                </div>
-                              </div>
-                            )}
-                            {action.type === 'action_args_chunk' && (
-                              <div className="action-usage args-streaming">
-                                <div className="action-header">
-                                  <span className="action-icon">📝</span>
-                                  <strong>{action.tool}</strong>
-                                </div>
-                                <pre className="action-args partial">{action.partial_args || action.content}</pre>
-                              </div>
-                            )}
-                            {action.type === 'action' && (
-                              <div className="action-usage">
-                                <div className="action-header">
-                                  <span className="action-icon">🔧</span>
-                                  <strong>Using {action.tool}</strong>
-                                </div>
-                                {action.args && (
-                                  <pre className="action-args">{JSON.stringify(action.args, null, 2)}</pre>
-                                )}
-                              </div>
-                            )}
-                            {action.type === 'observation' && (
-                              <div className={`observation ${action.success ? 'success' : 'error'}`}>
-                                <div className="observation-header">
-                                  <span className="observation-icon">
-                                    {action.success ? '✅' : '❌'}
-                                  </span>
-                                  <strong>Result</strong>
-                                </div>
-                                <pre className="observation-content">{action.content}</pre>
-                              </div>
-                            )}
-                          </div>
+                          .map((event, idx) => renderStreamEvent(event, idx))}
+                        <span className="streaming-cursor">▋</span>
+                      </div>
+                    )}
+
+                    {/* Message content for completed messages */}
+                    {message.role === 'assistant' && index < messages.length - 1 && message.content && (
+                      <div className="message-body">
+                        {message.content.split('\n').map((line, i) => (
+                          <p key={i}>{line || '\u00A0'}</p>
                         ))}
                       </div>
                     )}
 
-                    {/* Message content */}
-                    {message.content && (
+                    {/* User messages always show content */}
+                    {message.role === 'user' && message.content && (
                       <div className="message-body">
                         {message.content.split('\n').map((line, i) => (
                           <p key={i}>{line || '\u00A0'}</p>
