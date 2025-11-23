@@ -23,6 +23,18 @@ const CustomScroller = forwardRef<HTMLDivElement, any>(({ style, ...props }, ref
 ));
 CustomScroller.displayName = 'CustomScroller';
 
+// Item wrapper to center and constrain message width (matching old layout concept)
+const ItemWrapper = ({ children }: { children: React.ReactNode }) => (
+  <div style={{
+    maxWidth: '48rem',
+    margin: '0 auto',
+    padding: '0 24px',
+    width: '100%'
+  }}>
+    {children}
+  </div>
+);
+
 export const VirtualizedChatList = ({ messages, isStreaming, streamEvents = [] }: VirtualizedChatListProps) => {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
 
@@ -48,12 +60,14 @@ export const VirtualizedChatList = ({ messages, isStreaming, streamEvents = [] }
         const isCurrentlyStreaming = isStreaming && isLastMessage;
 
         return (
-          <MemoizedMessage
-            key={message.id}
-            message={message}
-            isStreaming={isCurrentlyStreaming}
-            streamEvents={isCurrentlyStreaming ? streamEvents : []}
-          />
+          <ItemWrapper>
+            <MemoizedMessage
+              key={message.id}
+              message={message}
+              isStreaming={isCurrentlyStreaming}
+              streamEvents={isCurrentlyStreaming ? streamEvents : []}
+            />
+          </ItemWrapper>
         );
       }}
       components={{

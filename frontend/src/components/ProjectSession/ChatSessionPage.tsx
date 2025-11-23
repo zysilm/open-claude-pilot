@@ -82,10 +82,10 @@ export default function ChatSessionPage() {
       <div className="chat-header">
         <button
           onClick={handleBackClick}
-          className="back-button"
+          className="back-btn"
           aria-label="Back to project"
         >
-          ←
+          ← Back to Project
         </button>
         <h2 className="session-title">
           {session?.name || 'Chat Session'}
