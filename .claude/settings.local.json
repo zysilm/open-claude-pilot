@@ -52,7 +52,8 @@
       "WebFetch(domain:python.langchain.com)",
       "WebFetch(domain:blog.langchain.com)",
       "WebFetch(domain:medium.com)",
-      "WebFetch(domain:google.github.io)"
+      "WebFetch(domain:google.github.io)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

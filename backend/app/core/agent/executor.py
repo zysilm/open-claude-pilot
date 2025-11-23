@@ -152,6 +152,8 @@ Available tools will be provided as function calling options. Use them to accomp
                 full_response = ""
                 # Support multiple tool calls - track by index
                 tool_calls = {}  # {index: {"name": str, "arguments": str}}
+                # Track which tool calls we've announced to avoid duplicate streaming events
+                announced_tool_calls = set()
 
                 print(f"[REACT AGENT] Calling LLM generate_stream...")
                 chunk_count = 0
@@ -196,6 +198,19 @@ Available tools will be provided as function calling options. Use them to accomp
                         # IMPORTANT: Only set function_name if it's not None (preserve from first chunk)
                         if function_call.get("name") is not None:
                             tool_calls[index]["name"] = function_call.get("name")
+
+                            # Emit real-time streaming event when we first see the tool name
+                            # This gives immediate feedback to the user that an action is being prepared
+                            if index not in announced_tool_calls:
+                                announced_tool_calls.add(index)
+                                print(f"[REACT AGENT] Emitting action_streaming event for {function_call.get('name')}")
+                                yield {
+                                    "type": "action_streaming",
+                                    "tool": function_call.get("name"),
+                                    "status": "streaming",
+                                    "step": iteration + 1,
+                                }
+
                         # Accumulate arguments from all chunks for this specific tool call index
                         if function_call.get("arguments"):
                             tool_calls[index]["arguments"] += function_call.get("arguments", "")

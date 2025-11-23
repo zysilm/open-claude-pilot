@@ -1,5 +1,5 @@
 export interface ChatMessage {
-  type: 'message' | 'chunk' | 'start' | 'end' | 'error' | 'user_message_saved' | 'thought' | 'action' | 'observation' | 'cancelled' | 'cancel_acknowledged';
+  type: 'message' | 'chunk' | 'start' | 'end' | 'error' | 'user_message_saved' | 'thought' | 'action' | 'action_streaming' | 'observation' | 'cancelled' | 'cancel_acknowledged';
   content?: string;
   message_id?: string;
   tool?: string;
@@ -7,6 +7,7 @@ export interface ChatMessage {
   success?: boolean;
   step?: number;
   partial_content?: string;
+  status?: string;  // For action_streaming status
 }
 
 export class ChatWebSocket {
@@ -15,6 +16,8 @@ export class ChatWebSocket {
   private onMessageCallback?: (message: ChatMessage) => void;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 3;
+  private messageQueue: Array<{type: string, content?: string}> = [];
+  private isReconnecting = false;
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
@@ -29,6 +32,16 @@ export class ChatWebSocket {
     this.ws.onopen = () => {
       console.log('WebSocket connected');
       this.reconnectAttempts = 0;
+      this.isReconnecting = false;
+
+      // Send any queued messages
+      while (this.messageQueue.length > 0) {
+        const queuedMessage = this.messageQueue.shift();
+        if (queuedMessage && this.ws && this.ws.readyState === WebSocket.OPEN) {
+          console.log('Sending queued message:', queuedMessage.type);
+          this.ws.send(JSON.stringify(queuedMessage));
+        }
+      }
     };
 
     this.ws.onmessage = (event) => {
@@ -53,27 +66,39 @@ export class ChatWebSocket {
   }
 
   sendMessage(content: string): void {
+    const message = {
+      type: 'message',
+      content,
+    };
+
+    // If WebSocket is open, send immediately
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      const message = {
-        type: 'message',
-        content,
-      };
       this.ws.send(JSON.stringify(message));
-    } else {
-      console.error('WebSocket is not connected');
+      return;
     }
+
+    // If WebSocket is closed or closing, queue the message and reconnect
+    console.log('WebSocket not connected, queuing message and reconnecting...');
+    this.messageQueue.push(message);
+    this.ensureConnection();
   }
 
   sendCancel(): void {
+    const message = {
+      type: 'cancel',
+    };
+
+    // If WebSocket is open, send immediately
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      const message = {
-        type: 'cancel',
-      };
       this.ws.send(JSON.stringify(message));
       console.log('Cancel message sent');
-    } else {
-      console.error('WebSocket is not connected');
+      return;
     }
+
+    // If WebSocket is closed or closing, queue the message and reconnect
+    console.log('WebSocket not connected, queuing cancel and reconnecting...');
+    this.messageQueue.push(message);
+    this.ensureConnection();
   }
 
   close(): void {
@@ -90,6 +115,41 @@ export class ChatWebSocket {
       setTimeout(() => {
         this.connect(this.onMessageCallback!);
       }, 2000 * this.reconnectAttempts);
+    }
+  }
+
+  /**
+   * Ensures WebSocket connection is active. If not, initiates reconnection.
+   * This is called when user tries to send a message while disconnected.
+   */
+  private ensureConnection(): void {
+    // If already reconnecting, don't start another reconnection
+    if (this.isReconnecting) {
+      console.log('Already reconnecting, message queued');
+      return;
+    }
+
+    // If connection is good, nothing to do
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    // Connection is not good, initiate reconnection
+    if (this.onMessageCallback) {
+      console.log('Initiating immediate reconnection for pending message...');
+      this.isReconnecting = true;
+
+      // Close existing connection if it's in a bad state
+      if (this.ws && (this.ws.readyState === WebSocket.CLOSING || this.ws.readyState === WebSocket.CLOSED)) {
+        this.ws = null;
+      }
+
+      // Reset reconnect attempts counter to allow fresh reconnection
+      // This is important for user-initiated reconnects (sending a message)
+      this.reconnectAttempts = 0;
+
+      // Reconnect immediately (no delay for user-initiated reconnect)
+      this.connect(this.onMessageCallback);
     }
   }
 
