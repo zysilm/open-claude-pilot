@@ -64,7 +64,11 @@
       "WebFetch(domain:swe-agent.com)",
       "WebFetch(domain:aiengineerguide.com)",
       "WebFetch(domain:platform.claude.com)",
-      "WebFetch(domain:gist.github.com)"
+      "WebFetch(domain:gist.github.com)",
+      "Bash(xargs:*)",
+      "Bash(tree:*)",
+      "Bash(npm run test:unit:*)",
+      "Bash(npx vitest:*)"
     ],
     "deny": [],
     "ask": []
