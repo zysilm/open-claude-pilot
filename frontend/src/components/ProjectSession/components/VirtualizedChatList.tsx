@@ -1,4 +1,4 @@
-import { useRef, useEffect, forwardRef, useState } from 'react';
+import { useRef, useEffect, forwardRef, useState, useCallback } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { MemoizedMessage } from './MemoizedMessage';
 import { Message, StreamEvent } from '../hooks/useOptimizedStreaming';
@@ -38,6 +38,26 @@ const ItemWrapper = ({ children }: { children: React.ReactNode }) => (
 export const VirtualizedChatList = ({ messages, isStreaming, streamEvents = [] }: VirtualizedChatListProps) => {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const userScrolledRef = useRef(false);
+
+  // Detect when user manually scrolls
+  const handleScroll = useCallback((isScrolling: boolean) => {
+    if (isScrolling && !isStreaming) {
+      userScrolledRef.current = true;
+    }
+  }, [isStreaming]);
+
+  // Detect if user is at bottom
+  const handleAtBottomStateChange = useCallback((atBottom: boolean) => {
+    setIsAtBottom(atBottom);
+
+    // If user scrolls away from bottom, disable auto-scroll
+    if (!atBottom && userScrolledRef.current) {
+      setAutoScrollEnabled(false);
+      userScrolledRef.current = false;
+    }
+  }, []);
 
   // Auto-scroll to bottom when new message arrives OR during streaming (only if toggle is ON)
   useEffect(() => {
@@ -45,9 +65,10 @@ export const VirtualizedChatList = ({ messages, isStreaming, streamEvents = [] }
       // Use setTimeout to ensure DOM has updated with new streaming content
       const timeoutId = setTimeout(() => {
         if (virtuosoRef.current) {
-          // Scroll to absolute bottom using large number
-          virtuosoRef.current.scrollTo({
-            top: 999999999,
+          // Scroll to the last message index for precise control
+          virtuosoRef.current.scrollToIndex({
+            index: messages.length - 1,
+            align: 'end',
             behavior: isStreaming ? 'auto' : 'smooth',
           });
         }
@@ -63,6 +84,9 @@ export const VirtualizedChatList = ({ messages, isStreaming, streamEvents = [] }
         ref={virtuosoRef}
         data={messages}
         initialTopMostItemIndex={messages.length > 0 ? messages.length - 1 : 0}
+        followOutput="auto"
+        isScrolling={handleScroll}
+        atBottomStateChange={handleAtBottomStateChange}
         itemContent={(index, message) => {
           const isLastMessage = index === messages.length - 1;
           const isCurrentlyStreaming = isStreaming && isLastMessage;
@@ -92,8 +116,25 @@ export const VirtualizedChatList = ({ messages, isStreaming, streamEvents = [] }
       />
 
       {/* Auto-scroll toggle button */}
+      <style>{`
+        @keyframes scrollDown {
+          0%, 100% {
+            transform: translateY(0px);
+            opacity: 1;
+          }
+          50% {
+            transform: translateY(4px);
+            opacity: 0.6;
+          }
+        }
+
+        .auto-scroll-btn-animated svg {
+          animation: scrollDown 1.5s ease-in-out infinite;
+        }
+      `}</style>
       <button
         onClick={() => setAutoScrollEnabled(!autoScrollEnabled)}
+        className={autoScrollEnabled ? 'auto-scroll-btn-animated' : ''}
         style={{
           position: 'absolute',
           bottom: '20px',
