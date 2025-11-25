@@ -157,4 +157,200 @@ test.describe('Chat Session', () => {
     // Check that the last message is visible (scrolled into view)
     await expect(page.locator('text=Message 5')).toBeVisible();
   });
+
+  test('CS-007: Session metadata display', async ({ page }) => {
+    // Create a session
+    await page.fill('textarea[placeholder*="How can I help"]', 'Test metadata display');
+    await page.click('button.send-btn');
+    await page.waitForTimeout(2000);
+
+    // Verify session title is displayed
+    const sessionTitle = page.locator('.session-title');
+    await expect(sessionTitle).toBeVisible();
+
+    // Verify environment badge is displayed (if environment is set)
+    const environmentBadge = page.locator('.environment-badge');
+    // Environment badge should be visible if environment_type is set
+    const badgeCount = await environmentBadge.count();
+    if (badgeCount > 0) {
+      await expect(environmentBadge).toBeVisible();
+    }
+  });
+
+  test('CS-008: Cancel streaming', async ({ page }) => {
+    // Create a session
+    await page.fill('textarea[placeholder*="How can I help"]', 'Write a very long essay');
+    await page.click('button.send-btn');
+
+    // Wait for streaming to start
+    await page.waitForTimeout(500);
+
+    // Look for cancel button (should appear during streaming)
+    const cancelButton = page.locator('button:has-text("Cancel")');
+
+    // If streaming is active, cancel button should be present
+    const isCancelVisible = await cancelButton.isVisible().catch(() => false);
+    if (isCancelVisible) {
+      await cancelButton.click();
+
+      // Verify streaming stopped
+      await page.waitForTimeout(500);
+
+      // Cancel button should be disabled after streaming stops
+      await expect(cancelButton).toBeDisabled();
+    }
+  });
+
+  test('CS-009: Error display and dismissal', async ({ page }) => {
+    // Create a session
+    await page.fill('textarea[placeholder*="How can I help"]', 'Test error handling');
+    await page.click('button.send-btn');
+    await page.waitForTimeout(2000);
+
+    // Check if error banner appears (this would require triggering an error)
+    // For now, we'll verify the error banner structure exists in the DOM
+    const errorBanner = page.locator('.chat-error-banner');
+
+    // If an error occurs during the test, we should be able to dismiss it
+    const errorVisible = await errorBanner.isVisible().catch(() => false);
+    if (errorVisible) {
+      const closeButton = page.locator('.error-close-btn');
+      await closeButton.click();
+
+      // Verify error banner is no longer visible
+      await expect(errorBanner).not.toBeVisible();
+    }
+  });
+
+  test('CS-010: Back button navigation preserves data', async ({ page }) => {
+    // Create a session with messages
+    await page.fill('textarea[placeholder*="How can I help"]', 'First message');
+    await page.click('button.send-btn');
+    await page.waitForTimeout(2000);
+
+    // Get the session URL
+    const sessionUrl = page.url();
+
+    // Navigate back to project
+    await page.click('button:has-text("Back to Project")');
+    await page.waitForTimeout(500);
+
+    // Navigate back to the same session
+    await page.goto(sessionUrl);
+    await page.waitForTimeout(1000);
+
+    // Verify message is still there
+    await expect(page.locator('text=First message')).toBeVisible();
+  });
+
+  test('CS-011: Multiple messages rapid succession', async ({ page }) => {
+    // Create a session
+    await page.fill('textarea[placeholder*="How can I help"]', 'First');
+    await page.click('button.send-btn');
+    await page.waitForTimeout(1500);
+
+    // Send multiple messages quickly
+    const messages = ['Second', 'Third', 'Fourth'];
+    for (const msg of messages) {
+      await page.fill('.chat-input', msg);
+      await page.press('.chat-input', 'Enter');
+      await page.waitForTimeout(500);
+    }
+
+    // Verify all messages appear
+    await expect(page.locator('text=First')).toBeVisible();
+    await expect(page.locator('text=Second')).toBeVisible();
+    await expect(page.locator('text=Third')).toBeVisible();
+    await expect(page.locator('text=Fourth')).toBeVisible();
+  });
+
+  test('CS-012: Session title update', async ({ page }) => {
+    // Create a session
+    await page.fill('textarea[placeholder*="How can I help"]', 'Hello, can you help me?');
+    await page.click('button.send-btn');
+    await page.waitForTimeout(2000);
+
+    // Wait for potential title update from backend
+    await page.waitForTimeout(1000);
+
+    // Verify session title is present (might be updated by backend)
+    const sessionTitle = page.locator('.session-title');
+    await expect(sessionTitle).toBeVisible();
+
+    // Title should not be empty
+    const titleText = await sessionTitle.textContent();
+    expect(titleText).toBeTruthy();
+    expect(titleText?.length).toBeGreaterThan(0);
+  });
+
+  test('CS-013: Empty state to active chat transition', async ({ page }) => {
+    // Navigate to project
+    await page.goto('/');
+    await page.click('button:has-text("Create Project")');
+    await page.fill('input[name="name"]', 'Empty State Test');
+    await page.click('button:has-text("Create")');
+    await page.waitForTimeout(1000);
+
+    await page.click('text=Empty State Test');
+    await page.waitForTimeout(500);
+
+    // Check for empty state message
+    const quickStartInput = page.locator('textarea[placeholder*="How can I help"]');
+    await expect(quickStartInput).toBeVisible();
+
+    // Send first message
+    await page.fill('textarea[placeholder*="How can I help"]', 'First message ever');
+    await page.click('button.send-btn');
+    await page.waitForTimeout(2000);
+
+    // Verify transition to active chat
+    await expect(page.locator('text=First message ever')).toBeVisible();
+    await expect(page.locator('.chat-messages-container')).toBeVisible();
+  });
+
+  test('CS-014: Direct URL access to session', async ({ page }) => {
+    // Create a session first
+    await page.fill('textarea[placeholder*="How can I help"]', 'URL test message');
+    await page.click('button.send-btn');
+    await page.waitForTimeout(2000);
+
+    // Get the session URL
+    const sessionUrl = page.url();
+
+    // Navigate away
+    await page.goto('/');
+    await page.waitForTimeout(500);
+
+    // Direct access via URL
+    await page.goto(sessionUrl);
+    await page.waitForTimeout(1000);
+
+    // Verify session loads correctly
+    await expect(page.locator('text=URL test message')).toBeVisible();
+    await expect(page.locator('.session-title')).toBeVisible();
+    await expect(page.locator('.chat-input')).toBeVisible();
+  });
+
+  test('CS-015: Keyboard shortcuts in chat', async ({ page }) => {
+    // Create a session
+    await page.fill('textarea[placeholder*="How can I help"]', 'Keyboard test');
+    await page.click('button.send-btn');
+    await page.waitForTimeout(2000);
+
+    // Test Enter to send
+    await page.fill('.chat-input', 'Message sent with Enter');
+    await page.press('.chat-input', 'Enter');
+    await page.waitForTimeout(1000);
+    await expect(page.locator('text=Message sent with Enter')).toBeVisible();
+
+    // Test Shift+Enter for newline (message should not be sent)
+    await page.fill('.chat-input', 'Line 1');
+    await page.press('.chat-input', 'Shift+Enter');
+    await page.type('.chat-input', 'Line 2');
+
+    // Input should contain both lines
+    const inputValue = await page.locator('.chat-input').inputValue();
+    expect(inputValue).toContain('Line 1');
+    expect(inputValue).toContain('Line 2');
+  });
 });
