@@ -1,31 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import {Message, StreamEvent} from "@/types";
 
 // Industry standard: 30ms interval = 33 updates/second (ChatGPT-like speed)
 const FLUSH_INTERVAL_MS = 30;
 
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  created_at: string;
-  agent_actions?: any[];
-}
-
-export interface StreamEvent {
-  type: 'chunk' | 'action' | 'action_streaming' | 'action_args_chunk' | 'observation';
-  content?: string;
-  tool?: string;
-  args?: any;
-  partial_args?: string;
-  step?: number;
-  success?: boolean;
-  status?: string;
-  metadata?: any;
-}
-
 interface UseOptimizedStreamingProps {
-  sessionId: string | undefined;
+  sessionId: string;
   initialMessages?: Message[];
 }
 
@@ -103,9 +84,11 @@ export const useOptimizedStreaming = ({ sessionId, initialMessages = [] }: UseOp
           ...prev,
           {
             id: 'temp-' + Date.now(),
+            chat_session_id: sessionId,
             role: 'assistant',
             content: '',
             created_at: new Date().toISOString(),
+            message_metadata: {}
           }
         ]);
         break;
@@ -314,9 +297,11 @@ export const useOptimizedStreaming = ({ sessionId, initialMessages = [] }: UseOp
     // Add user message to local state immediately
     const userMessage: Message = {
       id: 'temp-user-' + Date.now(),
+      chat_session_id: sessionId,
       role: 'user',
-      content,
+      content: content,
       created_at: new Date().toISOString(),
+      message_metadata: {}
     };
 
     setMessages(prev => [...prev, userMessage]);

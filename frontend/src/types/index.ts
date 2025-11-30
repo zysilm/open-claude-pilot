@@ -71,6 +71,7 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   created_at: string;
+  agent_actions?: any[];
   message_metadata: Record<string, any>;
 }
 
@@ -83,4 +84,16 @@ export interface MessageCreate {
 export interface MessageListResponse {
   messages: Message[];
   total: number;
+}
+
+export interface StreamEvent {
+    type: 'chunk' | 'action' | 'action_streaming' | 'action_args_chunk' | 'observation';
+    content?: string;
+    tool?: string;
+    args?: any;
+    partial_args?: string;
+    step?: number;
+    success?: boolean;
+    status?: string;
+    metadata?: any;
 }
