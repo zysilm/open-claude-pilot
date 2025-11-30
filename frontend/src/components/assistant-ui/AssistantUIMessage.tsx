@@ -12,7 +12,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { DefaultToolFallback } from './DefaultToolFallback';
-import type { Message, StreamEvent } from '../ProjectSession/hooks/useOptimizedStreaming';
+
 import type { ToolCallMessagePartProps, ToolCallMessagePartStatus } from '@assistant-ui/react';
 
 interface AssistantUIMessageProps {

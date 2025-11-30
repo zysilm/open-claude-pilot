@@ -47,7 +47,6 @@ export const DefaultToolFallback: React.FC<ToolCallMessagePartProps> = ({
   status,
 }) => {
   const isRunning = status?.type === 'running';
-  const isComplete = status?.type === 'complete';
   const hasResult = result !== undefined;
 
   // Special handling for file write operations

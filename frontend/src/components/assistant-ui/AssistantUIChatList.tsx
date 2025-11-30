@@ -8,8 +8,8 @@
 import { useRef, useEffect, forwardRef, memo } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { AssistantUIMessage } from './AssistantUIMessage';
-import type { Message, StreamEvent } from '../ProjectSession/hooks/useOptimizedStreaming';
 import './AssistantUIChat.css';
+import {Message, StreamEvent} from "@/types";
 
 interface AssistantUIChatListProps {
   messages: Message[];

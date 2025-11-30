@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type {AgentAction, Message, StreamEvent} from '@/types';
 import './MessageList.css';
+import {ObservationContent} from "@/components/ProjectSession/components/MessageHelpers.tsx";
 
 interface MessageListProps {
   messages: Message[];
@@ -81,7 +82,10 @@ export default function MessageList({
           <div key={index} className="agent-action agent-action-observation">
             <div className={`observation ${event.success ? 'success' : 'error'}`}>
               <span className="observation-icon">{event.success ? '✓' : '✗'}</span>
-              <pre className="observation-content">{event.content}</pre>
+                <ObservationContent
+                    content={event.content}
+                    metadata={event.metadata}
+                />
             </div>
           </div>
         );
