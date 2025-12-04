@@ -66,7 +66,12 @@
       "WebFetch(domain:platform.claude.com)",
       "WebFetch(domain:gist.github.com)",
       "Bash(npx tailwindcss:*)",
-      "Bash(npx playwright codegen:*)"
+      "Bash(npx playwright codegen:*)",
+      "Bash(node test-streaming-finalization.js:*)",
+      "Bash(node test-streaming-monitor.js:*)",
+      "Bash(node test-streaming-monitor.cjs:*)",
+      "Bash(node test-streaming-simple.cjs:*)",
+      "Bash(node test-specific-session.cjs:*)"
     ],
     "deny": [],
     "ask": []

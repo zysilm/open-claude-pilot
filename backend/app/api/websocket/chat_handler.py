@@ -15,11 +15,49 @@ from app.core.sandbox.manager import get_container_manager
 from app.api.websocket.task_registry import get_agent_task_registry
 from collections import deque
 
+# Import new architectural services
+from app.services.message_orchestrator import MessageOrchestrator
+from app.services.message_persistence import MessagePersistenceService
+from app.services.streaming_buffer import StreamingBuffer
+from app.services.event_bus import EventBus, StreamingEvent
+
 
 # Global chunk buffer for reconnection support
 # Maps session_id -> deque of chunks
 _chunk_buffers: Dict[str, deque] = {}
 MAX_BUFFER_SIZE = 1000  # Keep last 1000 chunks per session (increased from 200 to handle longer responses)
+
+# Initialize architectural services
+_event_bus = EventBus()
+_streaming_buffer = StreamingBuffer(max_buffer_size=10000)
+_message_persistence = None  # Will be initialized with database session
+_orchestrator = None  # Will be initialized with database session
+
+
+def get_orchestrator(db: AsyncSession) -> MessageOrchestrator:
+    """
+    Get or initialize the message orchestrator with database session.
+
+    Args:
+        db: Database session
+
+    Returns:
+        MessageOrchestrator instance
+    """
+    global _orchestrator, _message_persistence
+
+    if _orchestrator is None:
+        # Initialize persistence service with database session
+        _message_persistence = MessagePersistenceService(db)
+
+        # Create orchestrator with all services
+        _orchestrator = MessageOrchestrator(
+            persistence=_message_persistence,
+            buffer=_streaming_buffer,
+            event_bus=_event_bus
+        )
+
+    return _orchestrator
 
 
 def is_vision_model(model_name: str) -> bool:
@@ -410,14 +448,14 @@ class ChatWebSocketHandler:
         finally:
             self.cancel_event = None
 
-        # Update final message state
-        assistant_message.content = assistant_content if assistant_content else "Response completed."
+        # Update final message state - ALWAYS use the complete accumulated content
+        assistant_message.content = assistant_content  # No conditional - always assign the full content
         assistant_message.message_metadata = {
             "streaming": False,
             "cancelled": cancelled
         }
         await self.db.commit()
-        print(f"[SIMPLE RESPONSE] Final message saved with ID: {assistant_message.id}")
+        print(f"[SIMPLE RESPONSE] Final message saved with ID: {assistant_message.id}, Content length: {len(assistant_content)} chars")
 
         # Send completion
         try:
@@ -445,8 +483,10 @@ class ChatWebSocketHandler:
         agent_config: AgentConfiguration
     ):
         """Handle agent response with tool execution."""
+        assistant_message = None
         try:
-            await self._handle_agent_response_impl(
+            # Get the assistant message from the implementation
+            assistant_message = await self._handle_agent_response_impl(
                 session_id, user_message, history, llm_provider, agent_config
             )
         except Exception as e:
@@ -456,13 +496,42 @@ class ChatWebSocketHandler:
             import traceback
             traceback.print_exc()
 
+            # CRITICAL FIX: Update message metadata to mark as not streaming and with error
+            try:
+                # Find the assistant message if we don't have it
+                if not assistant_message:
+                    query = (
+                        select(Message)
+                        .where(Message.chat_session_id == session_id)
+                        .where(Message.role == MessageRole.ASSISTANT)
+                        .order_by(Message.created_at.desc())
+                        .limit(1)
+                    )
+                    result = await self.db.execute(query)
+                    assistant_message = result.scalar_one_or_none()
+
+                # Update the message to mark it as complete with error
+                if assistant_message:
+                    assistant_message.message_metadata = {
+                        "agent_mode": True,
+                        "streaming": False,  # No longer streaming
+                        "has_error": True,
+                        "error_message": error_msg,
+                        "cancelled": False
+                    }
+                    await self.db.commit()
+                    print(f"[AGENT HANDLER] Updated message {assistant_message.id} metadata after exception")
+            except Exception as db_error:
+                print(f"[AGENT HANDLER] Failed to update message metadata: {db_error}")
+
             await self.websocket.send_json({
                 "type": "error",
                 "content": f"Error: {error_msg}"
             })
             await self.websocket.send_json({
                 "type": "end",
-                "error": True
+                "error": True,
+                "message_id": assistant_message.id if assistant_message else None
             })
 
     async def _handle_agent_response_impl(
@@ -796,8 +865,8 @@ class ChatWebSocketHandler:
         print(f"[AGENT] Has error: {has_error}")
         print(f"[AGENT] Cancelled: {cancelled}")
 
-        # Update final message state
-        assistant_message.content = assistant_content if assistant_content else "Task completed."
+        # Update final message state - ALWAYS use the complete accumulated content
+        assistant_message.content = assistant_content  # No conditional - always assign the full content
         assistant_message.message_metadata = {
             "agent_mode": True,
             "streaming": False,  # No longer streaming
@@ -805,7 +874,7 @@ class ChatWebSocketHandler:
             "cancelled": cancelled
         }
         await self.db.commit()
-        print(f"[AGENT] Final message saved with ID: {assistant_message.id}")
+        print(f"[AGENT] Final message saved with ID: {assistant_message.id}, Content length: {len(assistant_content)} chars")
 
         # Send completion with message ID
         try:
@@ -827,6 +896,9 @@ class ChatWebSocketHandler:
         if session_id in _chunk_buffers:
             del _chunk_buffers[session_id]
             print(f"[TASK REGISTRY] Cleared chunk buffer for session {session_id}")
+
+        # Return the assistant message so exception handler can access it
+        return assistant_message
 
     async def _get_conversation_history(
         self,
