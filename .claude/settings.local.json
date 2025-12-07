@@ -76,7 +76,10 @@
       "Bash(node test-streaming-manager.cjs:*)",
       "Bash(grep:*)",
       "Bash(timeout 60 node:*)",
-      "Bash(node test-tool-streaming.mjs:*)"
+      "Bash(node test-tool-streaming.mjs:*)",
+      "Bash(xargs:*)",
+      "Bash(node test-refresh-scenario.mjs:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

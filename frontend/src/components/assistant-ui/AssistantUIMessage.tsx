@@ -94,6 +94,20 @@ export const AssistantUIMessage: React.FC<AssistantUIMessageProps> = ({
   const role = block.block_type === 'user_text' ? 'user' : 'assistant';
   const textContent = block.content?.text || '';
 
+  // Debug logging for tool blocks
+  if (toolBlocks.length > 0 || isStreaming) {
+    console.log('[AssistantUIMessage] Rendering:', {
+      blockId: block.id,
+      blockType: block.block_type,
+      textContentLength: textContent.length,
+      textContentPreview: textContent.substring(0, 100),
+      toolBlockCount: toolBlocks.length,
+      toolBlockTypes: toolBlocks.map(tb => tb.block_type),
+      isStreaming,
+      streamEventsCount: streamEvents.length
+    });
+  }
+
   // Process message parts with proper streaming support
   const messageParts = useMemo(() => {
     const parts: any[] = [];
@@ -250,9 +264,23 @@ export const AssistantUIMessage: React.FC<AssistantUIMessageProps> = ({
           parts.push({ type: 'tool-call', ...rest });
         });
     } else {
-      // Non-streaming message
+      // Non-streaming message (or streaming but no events yet - e.g., after page refresh)
+      console.log('[AssistantUIMessage] Using persisted path:', {
+        hasTextContent: !!textContent,
+        textContentLength: textContent.length,
+        isStreaming,
+        toolBlocksCount: toolBlocks.length
+      });
+
       if (textContent) {
-        parts.push({ type: 'text', content: textContent, isStreaming: false });
+        // If the component is in streaming mode, use streaming styling even for persisted content
+        // This handles the case where we refresh during streaming - textContent comes from
+        // stream_sync but we still want the streaming cursor
+        parts.push({ type: 'text', content: textContent, isStreaming: isStreaming });
+      } else if (isStreaming) {
+        // No text content yet but we're streaming - show a placeholder with streaming cursor
+        // This happens when refreshing during tool execution (before any text is produced)
+        parts.push({ type: 'text', content: '', isStreaming: true });
       }
 
       // Add persisted tool blocks
@@ -313,6 +341,19 @@ export const AssistantUIMessage: React.FC<AssistantUIMessageProps> = ({
           });
         });
       }
+    }
+
+    // Debug log the parts created
+    if (toolBlocks.length > 0 || isStreaming) {
+      const toolCallParts = parts.filter(p => p.type === 'tool-call');
+      console.log('[AssistantUIMessage] messageParts created:', {
+        totalParts: parts.length,
+        toolCallParts: toolCallParts.length,
+        partTypes: parts.map(p => p.type),
+        toolCallNames: toolCallParts.map(p => p.toolName),
+        usedStreamingPath: isStreaming && streamEvents.length > 0,
+        usedPersistedPath: !(isStreaming && streamEvents.length > 0)
+      });
     }
 
     return parts;

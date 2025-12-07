@@ -95,8 +95,15 @@ export const useOptimizedStreaming = ({
 
     switch (data.type) {
       case 'stream_sync':
-        // NEW: Server sends full stream state for reconnection
-        console.log('[WS] stream_sync:', data.block_id, 'content length:', data.accumulated_content?.length);
+        // Server sends full stream state for reconnection
+        console.log('[WS] stream_sync received:', {
+          block_id: data.block_id,
+          content_length: data.accumulated_content?.length,
+          streaming: data.streaming,
+          sequence_number: data.sequence_number,
+          has_active_tool_call: !!data.active_tool_call,
+          active_tool_call: data.active_tool_call
+        });
 
         // Initialize stream state for this block
         streamStatesRef.current.set(data.block_id, {
@@ -106,8 +113,43 @@ export const useOptimizedStreaming = ({
         });
         activeBlockIdRef.current = data.block_id;
 
+        // IMPORTANT: Set streaming state FIRST so merge logic works correctly
+        setIsStreaming(true);
+        setError(null);
+        console.log('[WS] stream_sync - isStreaming set to true');
+
+        // If there's an active tool call, add it to stream events so it displays immediately
+        if (data.active_tool_call) {
+          const toolCall = data.active_tool_call;
+          console.log('[WS] stream_sync - Adding active tool call to stream events:', toolCall.tool_name);
+
+          // Create a synthetic event for the active tool call
+          if (toolCall.status === 'streaming') {
+            // Tool is still streaming arguments
+            setStreamEvents([{
+              type: 'action_args_chunk',
+              tool: toolCall.tool_name,
+              partial_args: toolCall.partial_args,
+              step: toolCall.step
+            }]);
+          } else if (toolCall.status === 'running') {
+            // Tool is executing (arguments complete)
+            setStreamEvents([{
+              type: 'action',
+              tool: toolCall.tool_name,
+              args: toolCall.partial_args ? JSON.parse(toolCall.partial_args) : {},
+              step: toolCall.step
+            }]);
+          }
+        } else {
+          // Clear any stale events from previous session
+          setStreamEvents([]);
+        }
+        eventBufferRef.current = [];
+
         // Update or create the block with synced content (server is source of truth)
         setBlocks(prev => {
+          console.log('[WS] stream_sync - setBlocks callback, prev has', prev.length, 'blocks');
           const existingIndex = prev.findIndex(b => b.id === data.block_id);
 
           if (existingIndex !== -1) {
@@ -138,8 +180,14 @@ export const useOptimizedStreaming = ({
           }
         });
 
-        setIsStreaming(true);
-        setError(null);
+        // Refetch all blocks from API to get tool_call and tool_result blocks
+        // stream_sync only sends text content, tool blocks need to be fetched separately
+        // Use refetchQueries to force an immediate refetch bypassing stale time
+        console.log('[WS] stream_sync - Refetching contentBlocks for session:', sessionId);
+        queryClient.refetchQueries({
+          queryKey: ['contentBlocks', sessionId],
+          exact: true
+        });
         break;
 
       case 'user_text_block':
@@ -321,12 +369,35 @@ export const useOptimizedStreaming = ({
           .some(s => s.streaming);
 
         if (!stillStreaming) {
-          setIsStreaming(false);
+          // Clear streaming state and events
           setStreamEvents([]);
-        }
 
-        // Refetch blocks from API to get persisted version
-        queryClient.invalidateQueries({ queryKey: ['contentBlocks', sessionId] });
+          // Refetch blocks from API to get persisted version
+          // Use a small delay to ensure backend has persisted the final content
+          console.log('[WS] assistant_text_end - Scheduling refetch after delay');
+          setTimeout(async () => {
+            console.log('[WS] assistant_text_end - Refetching contentBlocks now');
+            try {
+              await queryClient.refetchQueries({
+                queryKey: ['contentBlocks', sessionId],
+                exact: true
+              });
+              console.log('[WS] assistant_text_end - Refetch complete, clearing streaming state');
+            } catch (err) {
+              console.error('[WS] assistant_text_end - Refetch failed:', err);
+            }
+            // Only clear isStreaming after refetch completes
+            // This ensures the UI stays in streaming mode until we have fresh data
+            setIsStreaming(false);
+          }, 100); // 100ms delay to let backend persist
+        } else {
+          // Other blocks still streaming, just refetch to get updated tool blocks
+          console.log('[WS] assistant_text_end - Still streaming, refetching for tool blocks');
+          queryClient.refetchQueries({
+            queryKey: ['contentBlocks', sessionId],
+            exact: true
+          });
+        }
         break;
 
       case 'end':
@@ -516,7 +587,8 @@ export const useOptimizedStreaming = ({
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('[useOptimizedStreaming] WebSocket connected');
+      console.log('[useOptimizedStreaming] WebSocket connected to session:', sessionId);
+      console.log('[useOptimizedStreaming] Current isStreaming state:', isStreaming);
     };
 
     ws.onmessage = handleWebSocketMessage;
@@ -539,11 +611,108 @@ export const useOptimizedStreaming = ({
   }, [sessionId, handleWebSocketMessage]);
 
   // Update blocks when external data changes
+  // Smart merge: preserve streaming blocks' content while adding new blocks (like tool blocks)
   useEffect(() => {
     if (initialBlocks && initialBlocks.length > 0) {
-      setBlocks(initialBlocks);
+      const toolBlocks = initialBlocks.filter(b => b.block_type === 'tool_call' || b.block_type === 'tool_result');
+      console.log('[useOptimizedStreaming] initialBlocks changed:', {
+        count: initialBlocks.length,
+        types: initialBlocks.map(b => b.block_type).join(','),
+        toolBlockCount: toolBlocks.length,
+        toolBlockIds: toolBlocks.map(b => b.id),
+        isStreaming
+      });
+
+      setBlocks(prev => {
+        // Log detailed content info for debugging
+        console.log('[useOptimizedStreaming] setBlocks callback - prev:', {
+          count: prev.length,
+          types: prev.map(b => b.block_type).join(','),
+          ids: prev.map(b => b.id),
+          contentLengths: prev.map(b => (b.content?.text || '').length)
+        });
+        console.log('[useOptimizedStreaming] initialBlocks:', {
+          count: initialBlocks.length,
+          types: initialBlocks.map(b => b.block_type).join(','),
+          ids: initialBlocks.map(b => b.id),
+          contentLengths: initialBlocks.map(b => (b.content?.text || '').length)
+        });
+
+        // If not streaming, just use initialBlocks directly
+        if (!isStreaming) {
+          console.log('[useOptimizedStreaming] Not streaming, using initialBlocks directly');
+          return initialBlocks;
+        }
+
+        // During streaming, merge intelligently:
+        // - Keep streaming blocks' content if it has MORE content than API (more up-to-date)
+        // - If streaming block is empty or has less content, prefer API content but mark as streaming
+        // - Add any blocks from initialBlocks we don't have (like tool_call, tool_result)
+        const streamingBlockIds = new Set(
+          Array.from(streamStatesRef.current.keys())
+        );
+        console.log('[useOptimizedStreaming] streamingBlockIds:', Array.from(streamingBlockIds));
+
+        const mergedBlocks: ContentBlock[] = [];
+        const seenIds = new Set<string>();
+
+        // Build a map of API content for comparison
+        const apiBlockMap = new Map(initialBlocks.map(b => [b.id, b]));
+
+        // First pass: handle streaming blocks - compare with API content
+        for (const block of prev) {
+          if (streamingBlockIds.has(block.id)) {
+            const streamingContent = block.content?.text || '';
+            const apiBlock = apiBlockMap.get(block.id);
+            const apiContent = apiBlock?.content?.text || '';
+
+            // Use streaming content only if it has MORE content than API (fresher data)
+            // Otherwise, prefer API content as it's more reliable
+            if (streamingContent.length > apiContent.length) {
+              console.log('[useOptimizedStreaming] Preserving streaming block (has more content):', block.id,
+                `streaming=${streamingContent.length} vs api=${apiContent.length}`);
+              mergedBlocks.push(block);
+              seenIds.add(block.id);
+            } else {
+              console.log('[useOptimizedStreaming] Will use API content for block:', block.id,
+                `streaming=${streamingContent.length} vs api=${apiContent.length}`);
+              // Don't add to seenIds so API content will be used
+            }
+          }
+        }
+
+        // Second pass: add all blocks from initialBlocks that we don't have
+        for (const block of initialBlocks) {
+          if (!seenIds.has(block.id)) {
+            // If this is the streaming block (using API content case), mark it as streaming
+            if (streamingBlockIds.has(block.id)) {
+              console.log('[useOptimizedStreaming] Using API content for streaming block:', block.id, block.block_type,
+                'content_length:', (block.content?.text || '').length);
+              mergedBlocks.push({
+                ...block,
+                block_metadata: { ...block.block_metadata, streaming: true }
+              });
+            } else {
+              mergedBlocks.push(block);
+            }
+            seenIds.add(block.id);
+          }
+        }
+
+        // Sort by sequence_number
+        mergedBlocks.sort((a, b) => a.sequence_number - b.sequence_number);
+
+        console.log('[useOptimizedStreaming] Merged result:', {
+          count: mergedBlocks.length,
+          types: mergedBlocks.map(b => b.block_type).join(','),
+          toolBlockCount: mergedBlocks.filter(b => b.block_type === 'tool_call' || b.block_type === 'tool_result').length,
+          contentLengths: mergedBlocks.map(b => (b.content?.text || '').length)
+        });
+
+        return mergedBlocks;
+      });
     }
-  }, [initialBlocks]);
+  }, [initialBlocks, isStreaming]);
 
   // Send message via WebSocket
   const sendMessage = useCallback((content: string) => {

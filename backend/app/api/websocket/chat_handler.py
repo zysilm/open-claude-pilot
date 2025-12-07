@@ -29,6 +29,15 @@ from app.services.event_bus import EventBus, StreamingEvent
 
 
 @dataclass
+class ToolCallState:
+    """State for an active tool call."""
+    tool_name: str
+    partial_args: str = ""
+    step: int = 0
+    status: str = "streaming"  # streaming, running, complete
+
+
+@dataclass
 class StreamState:
     """State for a streaming block, used for reconnection support."""
     block_id: str
@@ -36,6 +45,7 @@ class StreamState:
     accumulated_content: str = ""
     streaming: bool = True
     sequence_number: int = 0
+    active_tool_call: Optional[ToolCallState] = None  # Track currently streaming tool call
 
 
 # Global stream state for reconnection support
@@ -809,14 +819,24 @@ class ChatWebSocketHandler:
                     # Real-time feedback when tool name is first received
                     tool_name = event.get("tool")
                     status = event.get("status", "streaming")
+                    step = event.get("step", 0)
                     print(f"[AGENT] Action Streaming: {tool_name} ({status})")
+
+                    # Track active tool call state for reconnection
+                    if session_id in _stream_states:
+                        _stream_states[session_id].active_tool_call = ToolCallState(
+                            tool_name=tool_name,
+                            partial_args="",
+                            step=step,
+                            status="streaming"
+                        )
 
                     try:
                         await self.websocket.send_json({
                             "type": "action_streaming",
                             "tool": tool_name,
                             "status": status,
-                            "step": event.get("step", 0)
+                            "step": step
                         })
                     except:
                         print(f"[AGENT] WebSocket disconnected during action_streaming, continuing...")
@@ -825,14 +845,20 @@ class ChatWebSocketHandler:
                     # Real-time argument chunks as they're being assembled
                     tool_name = event.get("tool")
                     partial_args = event.get("partial_args", "")
+                    step = event.get("step", 0)
                     print(f"[AGENT] Action Args Chunk: {tool_name} - {partial_args[:50]}...")
+
+                    # Track partial args for reconnection
+                    if session_id in _stream_states and _stream_states[session_id].active_tool_call:
+                        _stream_states[session_id].active_tool_call.partial_args = partial_args
+                        _stream_states[session_id].active_tool_call.step = step
 
                     try:
                         await self.websocket.send_json({
                             "type": "action_args_chunk",
                             "tool": tool_name,
                             "partial_args": partial_args,
-                            "step": event.get("step", 0)
+                            "step": step
                         })
                     except:
                         print(f"[AGENT] WebSocket disconnected during action_args_chunk, continuing...")
@@ -843,6 +869,15 @@ class ChatWebSocketHandler:
                     tool_args = event.get("args", {})
                     print(f"[AGENT] Action: {tool_name}")
                     print(f"  Args: {tool_args}")
+
+                    # Update tool state to "running" (tool block created, now executing)
+                    if session_id in _stream_states:
+                        _stream_states[session_id].active_tool_call = ToolCallState(
+                            tool_name=tool_name,
+                            partial_args=json.dumps(tool_args),
+                            step=event.get("step", 0),
+                            status="running"
+                        )
 
                     # Create TOOL_CALL content block
                     current_tool_call_block = await self._create_content_block(
@@ -873,6 +908,10 @@ class ChatWebSocketHandler:
                     success = event.get("success", True)
                     metadata = event.get("metadata", {})
                     print(f"[AGENT] Observation (success={success}): {observation[:100]}...")
+
+                    # Clear active tool call - it's complete
+                    if session_id in _stream_states:
+                        _stream_states[session_id].active_tool_call = None
 
                     # Get tool name from current tool call block
                     tool_name_for_result = "unknown"
@@ -1284,22 +1323,42 @@ Respond with ONLY the title, nothing else. The title should capture the main top
 
         print(f"[STREAM SYNC] Attaching to existing stream for session {session_id}")
 
+        # CRITICAL: Copy cancel_event and task reference from existing task to this handler
+        # This allows the new WebSocket connection to control the running task
+        self.cancel_event = existing_task.cancel_event
+        self.current_agent_task = existing_task.task
+        print(f"[STREAM SYNC] Attached cancel_event: {self.cancel_event is not None}, task: {self.current_agent_task is not None}")
+
         ws_connected = True
 
         # Check if we have stream state for this session
         if session_id in _stream_states:
             stream_state = _stream_states[session_id]
             print(f"[STREAM SYNC] Found stream state for block {stream_state.block_id}, content length: {len(stream_state.accumulated_content)}")
+            if stream_state.active_tool_call:
+                print(f"[STREAM SYNC] Active tool call: {stream_state.active_tool_call.tool_name} (status: {stream_state.active_tool_call.status})")
+
+            # Build stream_sync payload
+            sync_payload = {
+                "type": "stream_sync",
+                "block_id": stream_state.block_id,
+                "accumulated_content": stream_state.accumulated_content,
+                "streaming": stream_state.streaming,
+                "sequence_number": stream_state.sequence_number
+            }
+
+            # Include active tool call state if present
+            if stream_state.active_tool_call:
+                sync_payload["active_tool_call"] = {
+                    "tool_name": stream_state.active_tool_call.tool_name,
+                    "partial_args": stream_state.active_tool_call.partial_args,
+                    "step": stream_state.active_tool_call.step,
+                    "status": stream_state.active_tool_call.status
+                }
 
             # Send stream_sync event with full state
             try:
-                await self.websocket.send_json({
-                    "type": "stream_sync",
-                    "block_id": stream_state.block_id,
-                    "accumulated_content": stream_state.accumulated_content,
-                    "streaming": stream_state.streaming,
-                    "sequence_number": stream_state.sequence_number
-                })
+                await self.websocket.send_json(sync_payload)
                 print(f"[STREAM SYNC] Sent stream_sync event for block {stream_state.block_id}")
             except WebSocketDisconnect:
                 print(f"[STREAM SYNC] WebSocket already disconnected")
