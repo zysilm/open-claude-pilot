@@ -14,6 +14,7 @@ from app.models.database import (
 )
 from sqlalchemy import func
 from app.core.llm import create_llm_provider_with_db
+from app.core.storage.database import AsyncSessionLocal
 from app.core.agent.executor import ReActAgent
 from app.core.agent.tools import ToolRegistry, BashTool, FileReadTool, FileWriteTool, FileEditTool, SearchTool, SetupEnvironmentTool, ThinkTool
 from app.core.sandbox.manager import get_container_manager
@@ -56,37 +57,35 @@ _stream_states: Dict[str, StreamState] = {}
 _chunk_buffers: Dict[str, deque] = {}
 MAX_BUFFER_SIZE = 1000
 
-# Initialize architectural services
+# Initialize architectural services (stateless singletons only)
 _event_bus = EventBus()
 _streaming_buffer = StreamingBuffer(max_buffer_size=10000)
-_message_persistence = None  # Will be initialized with database session
-_orchestrator = None  # Will be initialized with database session
 
 
-def get_orchestrator(db: AsyncSession) -> MessageOrchestrator:
+def create_orchestrator(db: AsyncSession) -> MessageOrchestrator:
     """
-    Get or initialize the message orchestrator with database session.
+    Create a message orchestrator with a database session.
+
+    NOTE: This creates a NEW orchestrator each time to avoid session sharing issues.
+    Each WebSocket connection should have its own orchestrator instance with its own
+    database session to prevent race conditions.
 
     Args:
-        db: Database session
+        db: Database session for this orchestrator
 
     Returns:
-        MessageOrchestrator instance
+        New MessageOrchestrator instance
     """
-    global _orchestrator, _message_persistence
+    # Create fresh persistence service with the provided session
+    persistence = MessagePersistenceService(db)
 
-    if _orchestrator is None:
-        # Initialize persistence service with database session
-        _message_persistence = MessagePersistenceService(db)
-
-        # Create orchestrator with all services
-        _orchestrator = MessageOrchestrator(
-            persistence=_message_persistence,
-            buffer=_streaming_buffer,
-            event_bus=_event_bus
-        )
-
-    return _orchestrator
+    # Create orchestrator with the session-specific persistence
+    # but shared stateless services (event bus, buffer)
+    return MessageOrchestrator(
+        persistence=persistence,
+        buffer=_streaming_buffer,
+        event_bus=_event_bus
+    )
 
 
 def is_vision_model(model_name: str) -> bool:
@@ -126,6 +125,17 @@ class ChatWebSocketHandler:
         self.cancel_event = None
         self.task_registry = get_agent_task_registry()  # Get global task registry
         self._sequence_cache: dict[str, int] = {}  # Cache for sequence numbers per session
+        self._db_lock = asyncio.Lock()  # Lock for serializing database operations
+
+    async def _safe_commit(self) -> None:
+        """
+        Safely commit database changes using the session lock.
+
+        This prevents race conditions when multiple coroutines try to commit
+        to the same session concurrently.
+        """
+        async with self._db_lock:
+            await self.db.commit()
 
     async def _get_next_sequence_number(self, session_id: str) -> int:
         """
@@ -165,6 +175,8 @@ class ChatWebSocketHandler:
         """
         Create and persist a content block.
 
+        Uses a lock to prevent concurrent database access race conditions.
+
         Args:
             session_id: The chat session ID
             block_type: Type of the block
@@ -176,22 +188,23 @@ class ChatWebSocketHandler:
         Returns:
             The created ContentBlock
         """
-        seq_num = await self._get_next_sequence_number(session_id)
+        async with self._db_lock:
+            seq_num = await self._get_next_sequence_number(session_id)
 
-        block = ContentBlock(
-            chat_session_id=session_id,
-            sequence_number=seq_num,
-            block_type=block_type,
-            author=author,
-            content=content,
-            parent_block_id=parent_block_id,
-            block_metadata=metadata or {}
-        )
-        self.db.add(block)
-        await self.db.flush()  # Get the ID
-        await self.db.commit()
+            block = ContentBlock(
+                chat_session_id=session_id,
+                sequence_number=seq_num,
+                block_type=block_type,
+                author=author,
+                content=content,
+                parent_block_id=parent_block_id,
+                block_metadata=metadata or {}
+            )
+            self.db.add(block)
+            await self.db.flush()  # Get the ID
+            await self.db.commit()
 
-        return block
+            return block
 
     def _block_to_dict(self, block: ContentBlock) -> dict:
         """Convert a ContentBlock to a dict for WebSocket transmission."""
@@ -472,7 +485,7 @@ class ChatWebSocketHandler:
                         "streaming": False,
                         "cancelled": content_holder["cancelled"]
                     }
-                    await self.db.commit()
+                    await self._safe_commit()
                     print(f"[FINALIZATION] Block {block.id} finalized with {len(content_holder['content'])} chars")
             except Exception as e:
                 print(f"[FINALIZATION] Error finalizing block: {e}")
@@ -552,7 +565,7 @@ class ChatWebSocketHandler:
                     # BATCHED INCREMENTAL SAVE: Update block content, commit periodically
                     assistant_block.content = {"text": content_holder["content"]}
                     if chunks_since_commit >= CHUNK_COMMIT_INTERVAL:
-                        await self.db.commit()
+                        await self._safe_commit()
                         chunks_since_commit = 0
                         print(f"[SIMPLE RESPONSE] Committed content update ({len(content_holder['content'])} chars)")
 
@@ -575,7 +588,7 @@ class ChatWebSocketHandler:
             "streaming": False,
             "cancelled": content_holder["cancelled"]
         }
-        await self.db.commit()
+        await self._safe_commit()
         print(f"[SIMPLE RESPONSE] Final block saved with ID: {assistant_block.id}, Content length: {len(content_holder['content'])} chars")
 
         # Mark as finalized in streaming manager
@@ -646,7 +659,7 @@ class ChatWebSocketHandler:
                         "error_message": error_msg,
                         "cancelled": False
                     }
-                    await self.db.commit()
+                    await self._safe_commit()
                     print(f"[AGENT HANDLER] Updated block {assistant_block.id} metadata after exception")
             except Exception as db_error:
                 print(f"[AGENT HANDLER] Failed to update block metadata: {db_error}")
@@ -770,7 +783,7 @@ class ChatWebSocketHandler:
                         "has_error": has_error,
                         "cancelled": cancelled
                     }
-                    await self.db.commit()
+                    await self._safe_commit()
                     print(f"[FINALIZATION] Agent block {block.id} finalized with {len(assistant_content)} chars")
             except Exception as e:
                 print(f"[FINALIZATION] Error finalizing agent block: {e}")
@@ -926,7 +939,7 @@ class ChatWebSocketHandler:
                             **current_tool_call_block.content,
                             "status": "complete" if success else "error"
                         }
-                        await self.db.commit()
+                        await self._safe_commit()
                         chunks_since_commit = 0  # Reset counter after action commit
 
                     # Create TOOL_RESULT content block
@@ -1035,7 +1048,7 @@ class ChatWebSocketHandler:
                     # Batched commit: only commit periodically
                     assistant_block.content = {"text": assistant_content}
                     if chunks_since_commit >= CHUNK_COMMIT_INTERVAL:
-                        await self.db.commit()
+                        await self._safe_commit()
                         chunks_since_commit = 0
                         print(f"[AGENT] Committed content update ({len(assistant_content)} chars)")
 
@@ -1062,7 +1075,7 @@ class ChatWebSocketHandler:
                     # Batched commit: only commit periodically
                     assistant_block.content = {"text": assistant_content}
                     if chunks_since_commit >= CHUNK_COMMIT_INTERVAL:
-                        await self.db.commit()
+                        await self._safe_commit()
                         chunks_since_commit = 0
                         print(f"[AGENT] Committed content update ({len(assistant_content)} chars)")
 
@@ -1109,7 +1122,7 @@ class ChatWebSocketHandler:
             "has_error": has_error,
             "cancelled": cancelled
         }
-        await self.db.commit()
+        await self._safe_commit()
         print(f"[AGENT] Final block saved with ID: {assistant_block.id}, Content length: {len(assistant_content)} chars")
 
         # Mark as finalized in streaming manager
@@ -1255,70 +1268,81 @@ class ChatWebSocketHandler:
         """
         Generate a title for the chat session based on the first user message.
         Only generates if this is the first message and title hasn't been auto-generated yet.
+
+        IMPORTANT: This method uses its own database session to avoid race conditions
+        with the main handler's session, since it runs as a background task.
         """
         try:
-            # Check if session needs title generation
-            session_query = select(ChatSession).where(ChatSession.id == session_id)
-            session_result = await self.db.execute(session_query)
-            session = session_result.scalar_one_or_none()
+            # Use a separate database session for this background task
+            # to avoid race conditions with the main handler's session
+            async with AsyncSessionLocal() as title_db:
+                try:
+                    # Check if session needs title generation
+                    session_query = select(ChatSession).where(ChatSession.id == session_id)
+                    session_result = await title_db.execute(session_query)
+                    session = session_result.scalar_one_or_none()
 
-            if not session:
-                return
+                    if not session:
+                        return
 
-            # Only generate if title was auto-generated flag is 'N'
-            if session.title_auto_generated != 'N':
-                print(f"[TITLE GEN] Skipping - title already auto-generated for session {session_id}")
-                return
+                    # Only generate if title was auto-generated flag is 'N'
+                    if session.title_auto_generated != 'N':
+                        print(f"[TITLE GEN] Skipping - title already auto-generated for session {session_id}")
+                        return
 
-            # Check if this is the first user message
-            user_block_count_query = select(ContentBlock).where(
-                ContentBlock.chat_session_id == session_id,
-                ContentBlock.block_type == ContentBlockType.USER_TEXT
-            )
-            user_block_count_result = await self.db.execute(user_block_count_query)
-            user_blocks = user_block_count_result.scalars().all()
+                    # Check if this is the first user message
+                    user_block_count_query = select(ContentBlock).where(
+                        ContentBlock.chat_session_id == session_id,
+                        ContentBlock.block_type == ContentBlockType.USER_TEXT
+                    )
+                    user_block_count_result = await title_db.execute(user_block_count_query)
+                    user_blocks = user_block_count_result.scalars().all()
 
-            if len(user_blocks) != 1:
-                print(f"[TITLE GEN] Skipping - not first message (count: {len(user_blocks)})")
-                return
+                    if len(user_blocks) != 1:
+                        print(f"[TITLE GEN] Skipping - not first message (count: {len(user_blocks)})")
+                        return
 
-            print(f"[TITLE GEN] Generating title for session {session_id}")
+                    print(f"[TITLE GEN] Generating title for session {session_id}")
 
-            # Create LLM provider for title generation
-            llm_provider = await create_llm_provider_with_db(
-                provider=agent_config.llm_provider,
-                model=agent_config.llm_model,
-                llm_config=agent_config.llm_config,
-                db=self.db,
-            )
+                    # Create LLM provider for title generation (uses separate session)
+                    llm_provider = await create_llm_provider_with_db(
+                        provider=agent_config.llm_provider,
+                        model=agent_config.llm_model,
+                        llm_config=agent_config.llm_config,
+                        db=title_db,
+                    )
 
-            # Generate title using LLM
-            prompt = f"""Generate a concise title (max 6 words) for a chat session based on this first user message:
+                    # Generate title using LLM
+                    prompt = f"""Generate a concise title (max 6 words) for a chat session based on this first user message:
 
 "{user_message}"
 
 Respond with ONLY the title, nothing else. The title should capture the main topic or intent."""
 
-            title_response = ""
-            async for chunk in llm_provider.generate_stream([{"role": "user", "content": prompt}]):
-                title_response += chunk
+                    title_response = ""
+                    async for chunk in llm_provider.generate_stream([{"role": "user", "content": prompt}]):
+                        title_response += chunk
 
-            # Clean up title (remove quotes, trim whitespace)
-            generated_title = title_response.strip().strip('"').strip("'")[:100]  # Max 100 chars
+                    # Clean up title (remove quotes, trim whitespace)
+                    generated_title = title_response.strip().strip('"').strip("'")[:100]  # Max 100 chars
 
-            # Update session with generated title
-            session.name = generated_title
-            session.title_auto_generated = 'Y'
-            await self.db.commit()
+                    # Update session with generated title
+                    session.name = generated_title
+                    session.title_auto_generated = 'Y'
+                    await title_db.commit()
 
-            print(f"[TITLE GEN] Generated title: '{generated_title}'")
+                    print(f"[TITLE GEN] Generated title: '{generated_title}'")
 
-            # Send title update to client via WebSocket
-            await self.websocket.send_json({
-                "type": "title_updated",
-                "session_id": session_id,
-                "title": generated_title
-            })
+                    # Send title update to client via WebSocket
+                    await self.websocket.send_json({
+                        "type": "title_updated",
+                        "session_id": session_id,
+                        "title": generated_title
+                    })
+
+                except Exception as inner_e:
+                    await title_db.rollback()
+                    raise inner_e
 
         except Exception as e:
             print(f"[TITLE GEN] Error generating title: {str(e)}")

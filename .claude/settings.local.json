@@ -79,7 +79,10 @@
       "Bash(node test-tool-streaming.mjs:*)",
       "Bash(xargs:*)",
       "Bash(node test-refresh-scenario.mjs:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(cat:*)",
+      "Bash(wc:*)",
+      "Bash(bun --version:*)"
     ],
     "deny": [],
     "ask": []
