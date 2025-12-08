@@ -9,7 +9,7 @@
  * - Download individual files or all as zip
  * - Real-time updates when LLM creates new files
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { workspaceAPI, filesAPI, WorkspaceFile, WorkspaceFileContent } from '@/services/api';
 import { FileDropZone } from '@/components/common';
@@ -27,6 +27,9 @@ import {
   X,
 } from 'lucide-react';
 import './ChatFileSidebar.css';
+
+// Local storage key for sidebar width
+const SIDEBAR_WIDTH_KEY = 'chatFileSidebarWidth';
 
 interface ChatFileSidebarProps {
   sessionId: string;
@@ -50,6 +53,83 @@ export default function ChatFileSidebar({
   const [selectedFile, setSelectedFile] = useState<WorkspaceFile | null>(null);
   const [uploadedExpanded, setUploadedExpanded] = useState(true);
   const [outputExpanded, setOutputExpanded] = useState(true);
+
+  // Resize state
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+    return saved ? parseInt(saved, 10) : 33.333; // Default to 1/3
+  });
+
+  // Close animation state
+  const [isClosing, setIsClosing] = useState(false);
+  const [shouldRender, setShouldRender] = useState(isOpen);
+
+  // Handle open/close with animation
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      setIsClosing(false);
+    } else if (shouldRender) {
+      // Start closing animation
+      setIsClosing(true);
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+        setIsClosing(false);
+      }, 200); // Match animation duration
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, shouldRender]);
+
+  // Handle close with animation
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 200);
+  }, [onClose]);
+
+  // Resize handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!sidebarRef.current) return;
+
+      const containerWidth = window.innerWidth;
+      const newWidth = ((containerWidth - e.clientX) / containerWidth) * 100;
+
+      // Clamp between min and max (20% to 50%)
+      const clampedWidth = Math.min(Math.max(newWidth, 20), 50);
+      setSidebarWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      // Save to localStorage
+      localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    // Prevent text selection while resizing
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizing, sidebarWidth]);
 
   // Fetch workspace files
   const {
@@ -183,19 +263,29 @@ export default function ChatFileSidebar({
     );
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const uploadedFiles = filesData?.uploaded || [];
   const outputFiles = filesData?.output || [];
 
   return (
-    <div className="chat-file-sidebar">
+    <div
+      ref={sidebarRef}
+      className={`chat-file-sidebar ${isClosing ? 'closing' : ''}`}
+      style={{ width: `${sidebarWidth}%` }}
+    >
+      {/* Resize handle */}
+      <div
+        className={`sidebar-resize-handle ${isResizing ? 'resizing' : ''}`}
+        onMouseDown={handleMouseDown}
+      />
+
       {/* Header */}
       <div className="sidebar-header">
         {viewMode === 'list' ? (
           <>
             <h3>Files</h3>
-            <button className="sidebar-close-btn" onClick={onClose} title="Close sidebar">
+            <button className="sidebar-close-btn" onClick={handleClose} title="Close sidebar">
               <X size={18} />
             </button>
           </>
@@ -205,7 +295,7 @@ export default function ChatFileSidebar({
               <ArrowLeft size={16} />
               Back
             </button>
-            <button className="sidebar-close-btn" onClick={onClose} title="Close sidebar">
+            <button className="sidebar-close-btn" onClick={handleClose} title="Close sidebar">
               <X size={18} />
             </button>
           </>

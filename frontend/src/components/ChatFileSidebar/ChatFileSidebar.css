@@ -5,10 +5,15 @@
  * - Clean, minimal aesthetic
  * - Smooth transitions
  * - Clear visual hierarchy
+ * - Resizable width
+ * - Slide animation
  */
 
 .chat-file-sidebar {
-  width: 320px;
+  position: relative;
+  width: 33.333%;
+  min-width: 280px;
+  max-width: 50%;
   height: 100%;
   background: #ffffff;
   border-left: 1px solid #e5e7eb;
@@ -16,6 +21,61 @@
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
+  /* Slide animation */
+  animation: slideIn 0.25s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.chat-file-sidebar.closing {
+  animation: slideOut 0.2s ease-in forwards;
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Resize handle */
+.sidebar-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 10;
+  transition: background 0.15s;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.resizing {
+  background: #2563eb;
+}
+
+.sidebar-resize-handle::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 0;
+  width: 12px;
+  height: 100%;
 }
 
 /* Sidebar Header */

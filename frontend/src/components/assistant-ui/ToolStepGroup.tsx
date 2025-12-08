@@ -124,8 +124,10 @@ function groupToolsIntoSteps(toolBlocks: ContentBlock[]): ToolStep[] {
     // Add tool call to current step
     currentStep.toolCalls.push({ block, result });
 
-    // Update step status
-    if (isError) currentStep.hasError = true;
+    // Update step status based on the LAST tool's result
+    // If a step has multiple tools (e.g., retry after error), the final status
+    // should reflect whether the step ultimately succeeded
+    currentStep.hasError = isError;  // Use last tool's error state, not cumulative
     if (!isComplete) currentStep.isComplete = false;
     if (isRunning) currentStep.isRunning = true;
   }
