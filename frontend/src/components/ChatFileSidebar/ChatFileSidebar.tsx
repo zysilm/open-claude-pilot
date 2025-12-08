@@ -203,7 +203,7 @@ export default function ChatFileSidebar({
 
             {error && (
               <div className="sidebar-error">
-                Sandbox not running. Start a conversation to see files.
+                No files available. Start a conversation to create files.
               </div>
             )}
 

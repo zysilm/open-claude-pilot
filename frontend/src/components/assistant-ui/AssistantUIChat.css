@@ -81,6 +81,23 @@
 .message-body {
   color: #111827;
   line-height: 1.6;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-x: hidden;
+}
+
+/* Ensure images in messages don't overflow */
+.message-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+/* Handle long URLs and base64 strings */
+.message-body a,
+.message-body code {
+  word-break: break-all;
 }
 
 /* Empty chat styles */

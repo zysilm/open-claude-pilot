@@ -312,6 +312,22 @@ export const AssistantUIMessage: React.FC<AssistantUIMessageProps> = ({
             key={index}
             remarkPlugins={[remarkGfm]}
             components={{
+              img({ src, alt, ...props }: any) {
+                return (
+                  <img
+                    src={src}
+                    alt={alt || 'Image'}
+                    style={{
+                      maxWidth: '100%',
+                      height: 'auto',
+                      borderRadius: '8px',
+                      display: 'block',
+                      margin: '12px 0',
+                    }}
+                    {...props}
+                  />
+                );
+              },
               code({ className, children, ...props }: any) {
                 const match = /language-(\w+)/.exec(className || '');
                 const language = match ? match[1] : '';

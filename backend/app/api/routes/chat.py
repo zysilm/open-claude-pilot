@@ -23,6 +23,7 @@ from app.models.schemas import (
 )
 from app.api.websocket import ChatWebSocketHandler
 from app.core.sandbox import get_container_manager
+from app.core.storage.storage_factory import get_storage
 
 router = APIRouter(prefix="/chats", tags=["chat"])
 
@@ -256,16 +257,40 @@ async def chat_stream(
 
 
 # Workspace file endpoints
-async def _get_container_for_session(session_id: str):
+async def _get_container_for_session(session_id: str, raise_if_not_found: bool = True):
     """Helper to get container for a session."""
     manager = get_container_manager()
     container = await manager.get_container(session_id)
-    if not container:
+    if not container and raise_if_not_found:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Sandbox not running. The environment must be set up first.",
         )
     return container
+
+
+async def _list_files_from_storage(session_id: str, directory: str, file_type: str) -> List[WorkspaceFile]:
+    """List files using storage backend (works even when container is stopped)."""
+    files = []
+    storage = get_storage()
+
+    try:
+        file_infos = await storage.list_files(session_id, directory)
+        for info in file_infos:
+            # info.path is full path like /workspace/out/file.py
+            name = info.path.split('/')[-1]
+            mime_type, _ = mimetypes.guess_type(name)
+            files.append(WorkspaceFile(
+                name=name,
+                path=info.path,
+                size=info.size,
+                type=file_type,
+                mime_type=mime_type,
+            ))
+    except Exception as e:
+        print(f"Error listing files from storage: {e}")
+
+    return files
 
 
 async def _list_files_in_directory(container, directory: str, file_type: str) -> List[WorkspaceFile]:
@@ -298,20 +323,23 @@ async def _list_files_in_directory(container, directory: str, file_type: str) ->
 @router.get("/{session_id}/workspace/files", response_model=WorkspaceFilesResponse)
 async def list_workspace_files(session_id: str):
     """List all files in the workspace (uploaded and output)."""
-    container = await _get_container_for_session(session_id)
+    # Try to get running container first
+    container = await _get_container_for_session(session_id, raise_if_not_found=False)
 
-    # List files in both directories
-    uploaded = await _list_files_in_directory(container, "/workspace/project_files", "uploaded")
-    output = await _list_files_in_directory(container, "/workspace/out", "output")
+    if container:
+        # Container is running - use container commands (faster)
+        uploaded = await _list_files_in_directory(container, "/workspace/project_files", "uploaded")
+        output = await _list_files_in_directory(container, "/workspace/out", "output")
+    else:
+        # Container not running - fall back to storage backend (works on volumes)
+        uploaded = await _list_files_from_storage(session_id, "/workspace/project_files", "uploaded")
+        output = await _list_files_from_storage(session_id, "/workspace/out", "output")
 
     return WorkspaceFilesResponse(uploaded=uploaded, output=output)
 
 
-@router.get("/{session_id}/workspace/files/content")
-async def get_workspace_file_content(session_id: str, path: str):
-    """Get the content of a workspace file."""
-    container = await _get_container_for_session(session_id)
-
+async def _read_file_content(session_id: str, path: str) -> str:
+    """Read file content from container or storage backend."""
     # Validate path is within workspace
     if not path.startswith("/workspace/"):
         raise HTTPException(
@@ -319,21 +347,56 @@ async def get_workspace_file_content(session_id: str, path: str):
             detail="Path must be within /workspace/",
         )
 
-    # Check if file exists
-    exit_code, _, _ = await container.execute(f"test -f '{path}'", workdir="/workspace", timeout=5)
-    if exit_code != 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"File not found: {path}",
-        )
+    # Try container first
+    container = await _get_container_for_session(session_id, raise_if_not_found=False)
 
-    # Read file content
-    content = await container.read_file(path)
-    if content is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to read file content",
-        )
+    if container:
+        # Check if file exists
+        exit_code, _, _ = await container.execute(f"test -f '{path}'", workdir="/workspace", timeout=5)
+        if exit_code != 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"File not found: {path}",
+            )
+
+        content = await container.read_file(path)
+        if content is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to read file content",
+            )
+        return content
+    else:
+        # Fall back to storage backend
+        storage = get_storage()
+        try:
+            content_bytes = await storage.read_file(session_id, path)
+            # Check if it's binary (image, etc.)
+            mime_type, _ = mimetypes.guess_type(path)
+            if mime_type and mime_type.startswith('image/'):
+                # Return as base64 data URI
+                import base64 as b64
+                b64_content = b64.b64encode(content_bytes).decode('utf-8')
+                return f"data:{mime_type};base64,{b64_content}"
+            else:
+                # Return as text
+                return content_bytes.decode('utf-8')
+        except FileNotFoundError:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"File not found: {path}",
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to read file: {str(e)}",
+            )
+
+
+@router.get("/{session_id}/workspace/files/content")
+async def get_workspace_file_content(session_id: str, path: str):
+    """Get the content of a workspace file."""
+    content = await _read_file_content(session_id, path)
 
     # Determine if it's a binary file (data URI)
     is_binary = content.startswith('data:')
@@ -350,22 +413,7 @@ async def get_workspace_file_content(session_id: str, path: str):
 @router.get("/{session_id}/workspace/files/download")
 async def download_workspace_file(session_id: str, path: str):
     """Download a single workspace file."""
-    container = await _get_container_for_session(session_id)
-
-    # Validate path
-    if not path.startswith("/workspace/"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Path must be within /workspace/",
-        )
-
-    # Read file content
-    content = await container.read_file(path)
-    if content is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"File not found: {path}",
-        )
+    content = await _read_file_content(session_id, path)
 
     # Get filename and mime type
     filename = path.split('/')[-1]
@@ -398,8 +446,6 @@ async def download_workspace_file(session_id: str, path: str):
 @router.get("/{session_id}/workspace/download-all")
 async def download_all_workspace_files(session_id: str, type: str = "output"):
     """Download all files of a type as a zip archive."""
-    container = await _get_container_for_session(session_id)
-
     # Determine directory
     if type == "uploaded":
         directory = "/workspace/project_files"
@@ -411,8 +457,15 @@ async def download_all_workspace_files(session_id: str, type: str = "output"):
             detail="Type must be 'uploaded' or 'output'",
         )
 
-    # List files
-    files = await _list_files_in_directory(container, directory, type)
+    # Try to get running container
+    container = await _get_container_for_session(session_id, raise_if_not_found=False)
+
+    if container:
+        # List files from container
+        files = await _list_files_in_directory(container, directory, type)
+    else:
+        # List files from storage backend
+        files = await _list_files_from_storage(session_id, directory, type)
 
     if not files:
         raise HTTPException(
@@ -424,19 +477,23 @@ async def download_all_workspace_files(session_id: str, type: str = "output"):
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for file in files:
-            content = await container.read_file(file.path)
-            if content:
-                # Handle binary files
-                if content.startswith('data:'):
-                    try:
-                        header, b64_data = content.split(',', 1)
-                        file_bytes = base64.b64decode(b64_data)
-                    except Exception:
-                        continue
-                else:
-                    file_bytes = content.encode('utf-8')
+            try:
+                content = await _read_file_content(session_id, file.path)
+                if content:
+                    # Handle binary files (data URIs)
+                    if content.startswith('data:'):
+                        try:
+                            header, b64_data = content.split(',', 1)
+                            file_bytes = base64.b64decode(b64_data)
+                        except Exception:
+                            continue
+                    else:
+                        file_bytes = content.encode('utf-8')
 
-                zip_file.writestr(file.name, file_bytes)
+                    zip_file.writestr(file.name, file_bytes)
+            except HTTPException:
+                # Skip files that can't be read
+                continue
 
     zip_buffer.seek(0)
 

@@ -111,21 +111,18 @@ class FileReadTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Read and visualize any file from the sandbox environment. "
-            "USE THIS TOOL WHEN USER ASKS TO: visualize, show, display, view, see, render, preview, or look at ANY file. "
-            "Can read from: /workspace/project_files (user uploaded files) or /workspace/out (files created by you). "
-            "UNIVERSAL FILE SUPPORT: "
-            "• Text files → returns content WITH LINE NUMBERS for easy reference "
-            "• Images (PNG, JPG, SVG, GIF, etc.) → returns data URI for automatic display "
-            "• Documents (PDF, HTML, etc.) → returns data URI for rendering "
-            "• Media (audio, video) → returns data URI for playback (if supported) "
-            "• Data files (CSV, JSON, XML) → returns content for inspection "
-            "• Binary files → returns base64-encoded data URI "
-            "The frontend automatically renders supported formats - just read the file! "
-            "Examples: '/workspace/out/plot.png', '/workspace/out/diagram.svg', '/workspace/project_files/image.jpg'. "
-            "CRITICAL: When user says 'visualize', 'show me', or 'display' → ALWAYS use this tool to make content visible. "
-            "After generating ANY visual output (charts, plots, diagrams, images), ALWAYS read it to display to user. "
-            "NOTE: Line numbers in output are essential for using edit_lines tool."
+            "Read and visualize any file from the sandbox environment.\n\n"
+            "DISPLAYING IMAGES - THIS IS THE ONLY WAY:\n"
+            "After saving any image/plot/chart (e.g., plt.savefig('plot.png')), you MUST use this tool to display it.\n"
+            "NEVER embed base64 data in your text response - it won't render properly!\n"
+            "CORRECT: Save to file → file_read('/workspace/out/plot.png') → Frontend displays automatically\n"
+            "WRONG: Embedding ![image](data:image/png;base64,...) in text response\n\n"
+            "FILE SUPPORT:\n"
+            "• Text files → returns content WITH LINE NUMBERS\n"
+            "• Images (PNG, JPG, SVG, etc.) → frontend displays automatically\n"
+            "• Data files (CSV, JSON) → returns content for inspection\n\n"
+            "PATHS: /workspace/project_files (user files) or /workspace/out (your files)\n"
+            "NOTE: Line numbers in output are for edit_lines tool."
         )
 
     @property
@@ -255,13 +252,17 @@ class FileWriteTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Write or create a file in the output directory (/workspace/out). "
-            "Creates new files or completely overwrites existing files. "
-            "Use this for: creating new source files, writing configuration files, "
-            "generating scripts, saving outputs. You can ONLY specify the filename, "
-            "not the full path - all files are written to /workspace/out. "
-            "WARNING: This overwrites existing files completely. "
-            "For targeted changes to existing files, use file_edit instead."
+            "Write or create a file in the output directory (/workspace/out).\n\n"
+            "USAGE:\n"
+            "• Creating source files, configs, scripts\n"
+            "• Saving outputs (data, images, plots)\n"
+            "• Only specify filename, not full path - files go to /workspace/out\n\n"
+            "AFTER SAVING IMAGES/PLOTS:\n"
+            "You MUST call file_read('/workspace/out/filename.png') to display images!\n"
+            "The frontend renders images from file_read results, NOT from text responses.\n"
+            "NEVER put base64 image data in your text - it won't display properly.\n\n"
+            "WARNING: This overwrites existing files completely.\n"
+            "For targeted changes to existing files, use edit_lines instead."
         )
 
     @property
