@@ -80,6 +80,12 @@
   padding: 12px 0;
 }
 
+/* Upload Section */
+.sidebar-upload-section {
+  padding: 0 12px 12px;
+  margin-bottom: 4px;
+}
+
 .sidebar-loading,
 .sidebar-error {
   padding: 24px 16px;

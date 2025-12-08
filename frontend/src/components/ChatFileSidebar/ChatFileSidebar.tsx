@@ -3,14 +3,16 @@
  *
  * Displays uploaded files and output files from the sandbox workspace.
  * Features:
+ * - Drag-and-drop file upload
  * - Collapsible sections for uploaded/output files
  * - File preview with viewer mode
  * - Download individual files or all as zip
  * - Real-time updates when LLM creates new files
  */
 import { useState, useCallback, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { workspaceAPI, WorkspaceFile, WorkspaceFileContent } from '@/services/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { workspaceAPI, filesAPI, WorkspaceFile, WorkspaceFileContent } from '@/services/api';
+import { FileDropZone } from '@/components/common';
 import {
   ChevronDown,
   ChevronRight,
@@ -28,6 +30,7 @@ import './ChatFileSidebar.css';
 
 interface ChatFileSidebarProps {
   sessionId: string;
+  projectId: string;
   isOpen: boolean;
   onClose: () => void;
   onFileUpdate?: () => void;
@@ -37,10 +40,12 @@ type ViewMode = 'list' | 'file';
 
 export default function ChatFileSidebar({
   sessionId,
+  projectId,
   isOpen,
   onClose,
   onFileUpdate,
 }: ChatFileSidebarProps) {
+  const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedFile, setSelectedFile] = useState<WorkspaceFile | null>(null);
   const [uploadedExpanded, setUploadedExpanded] = useState(true);
@@ -59,6 +64,20 @@ export default function ChatFileSidebar({
     staleTime: 30000, // 30 seconds
     retry: 1,
   });
+
+  // Upload mutation
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => filesAPI.upload(projectId, file),
+    onSuccess: () => {
+      // Invalidate both project files and workspace files
+      queryClient.invalidateQueries({ queryKey: ['files', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['workspaceFiles', sessionId] });
+    },
+  });
+
+  const handleUpload = useCallback(async (file: File) => {
+    await uploadMutation.mutateAsync(file);
+  }, [uploadMutation]);
 
   // Fetch selected file content
   const {
@@ -209,6 +228,15 @@ export default function ChatFileSidebar({
 
             {!isLoading && !error && (
               <>
+                {/* Upload Drop Zone */}
+                <div className="sidebar-upload-section">
+                  <FileDropZone
+                    onUpload={handleUpload}
+                    isUploading={uploadMutation.isPending}
+                    compact
+                  />
+                </div>
+
                 {/* Uploaded Files Section */}
                 <div className="file-section">
                   <button
