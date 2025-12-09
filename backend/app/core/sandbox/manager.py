@@ -92,7 +92,7 @@ class ContainerPoolManager:
         self,
         session_id: str,
         project_id: str,
-        env_type: str = "python3.11",
+        env_type: str = "python3.13",
         environment_config: Dict | None = None
     ) -> SandboxContainer:
         """

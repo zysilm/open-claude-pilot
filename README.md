@@ -40,7 +40,7 @@ ReAct-based agents that reason through problems step by step:
 
 Secure Docker containers for code execution:
 
-- **Isolated environments** - Python 3.11/3.12/3.13, Node.js 20, C++
+- **Isolated environments** - Python 3.13, Node.js 20, C++
 - **Container pooling** - Pre-warmed containers for fast startup
 - **Resource limits** - CPU, memory, and disk quotas
 - **File isolation** - Workspace separation between projects
@@ -184,12 +184,12 @@ Pre-configured agents for common tasks:
 
 | Template | Use Case |
 |----------|----------|
-| `python_dev` | Python development with pytest |
+| `python_dev` | Python 3.13 development with pytest |
 | `node_dev` | TypeScript/JavaScript development |
 | `data_analyst` | Data analysis with pandas, matplotlib |
 | `code_reviewer` | Read-only code review |
 | `test_writer` | Test generation |
-| `default` | General purpose development |
+| `default` | General purpose (Python 3.13) |
 
 ## Example Usage
 

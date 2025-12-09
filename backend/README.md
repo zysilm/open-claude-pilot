@@ -40,7 +40,7 @@ The OpenCodex backend provides a ReAct-based agent system with sandboxed code ex
 ### Sandbox Execution
 - **Docker isolation** - Each session runs in its own container
 - **Container pooling** - Pre-warmed containers for fast startup
-- **Multiple environments** - Python 3.11/3.12/3.13, Node.js 20, C++
+- **Multiple environments** - Python 3.13, Node.js 20, C++
 - **Resource limits** - CPU, memory, and disk quotas
 - **Volume mounting** - Project files accessible read-only at `/workspace/project_files`
 
@@ -226,14 +226,14 @@ Pre-configured agents in `app/core/agent/templates.py`:
 
 | Template | Environment | Description |
 |----------|-------------|-------------|
-| `python_dev` | Python 3.11 | Python development with pytest |
+| `python_dev` | Python 3.13 | Python development with pytest |
 | `node_dev` | Node.js 20 | TypeScript/JavaScript development |
-| `data_analyst` | Python 3.11 | Data analysis with pandas, matplotlib |
-| `script_writer` | Python 3.11 | Automation scripts |
-| `code_reviewer` | Python 3.11 | Read-only code review |
-| `test_writer` | Python 3.11 | Test generation |
-| `minimal` | Python 3.11 | Simple read-only tasks |
-| `default` | Python 3.11 | General purpose |
+| `data_analyst` | Python 3.13 | Data analysis with pandas, matplotlib |
+| `script_writer` | Python 3.13 | Automation scripts |
+| `code_reviewer` | Python 3.13 | Read-only code review |
+| `test_writer` | Python 3.13 | Test generation |
+| `minimal` | Python 3.13 | Simple read-only tasks |
+| `default` | Python 3.13 | General purpose |
 
 ## API Reference
 

@@ -133,7 +133,7 @@ AGENT_TEMPLATES = {
         name="Python Developer",
         description="Python development specialist with full tool access",
         agent_type="code_agent",
-        environment_type="python3.11",
+        environment_type="python3.13",
         environment_config={
             "packages": ["requests", "pandas", "numpy", "pytest"]
         },
@@ -224,7 +224,7 @@ AGENT_TEMPLATES = {
         name="Data Analyst",
         description="Data analysis and visualization specialist",
         agent_type="code_agent",
-        environment_type="python3.11",
+        environment_type="python3.13",
         environment_config={
             "packages": ["pandas", "numpy", "matplotlib", "seaborn", "jupyter", "scikit-learn"]
         },
@@ -277,7 +277,7 @@ AGENT_TEMPLATES = {
         name="Script Writer",
         description="Automation and scripting specialist",
         agent_type="code_agent",
-        environment_type="python3.11",
+        environment_type="python3.13",
         environment_config={
             "packages": ["requests", "beautifulsoup4", "selenium"]
         },
@@ -319,7 +319,7 @@ AGENT_TEMPLATES = {
         name="Code Reviewer",
         description="Code review and analysis specialist (read-only)",
         agent_type="code_agent",
-        environment_type="python3.11",
+        environment_type="python3.13",
         environment_config={},
         enabled_tools=["bash", "file_read", "search"],  # Read-only for safety
         llm_provider="openai",
@@ -373,7 +373,7 @@ AGENT_TEMPLATES = {
         name="Test Writer",
         description="Unit and integration test specialist",
         agent_type="code_agent",
-        environment_type="python3.11",
+        environment_type="python3.13",
         environment_config={
             "packages": ["pytest", "pytest-cov", "pytest-mock"]
         },
@@ -431,7 +431,7 @@ AGENT_TEMPLATES = {
         name="Minimal Agent",
         description="Minimal configuration for simple read-only tasks",
         agent_type="code_agent",
-        environment_type="python3.11",
+        environment_type="python3.13",
         environment_config={},
         enabled_tools=["bash", "file_read", "search"],
         llm_provider="openai",
@@ -455,7 +455,7 @@ AGENT_TEMPLATES = {
         name="Default",
         description="Comprehensive general-purpose coding agent",
         agent_type="code_agent",
-        environment_type="python3.11",
+        environment_type="python3.13",
         environment_config={},
         enabled_tools=["bash", "file_read", "file_write", "edit_lines", "search", "think"],
         llm_provider="openai",
