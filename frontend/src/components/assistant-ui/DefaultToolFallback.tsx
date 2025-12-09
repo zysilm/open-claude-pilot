@@ -107,6 +107,16 @@ export const DefaultToolFallback: React.FC<ToolCallMessagePartProps> = ({
     }
   }, [isRunning]);
 
+  // Auto-collapse when tool completes (after brief delay to show result)
+  useEffect(() => {
+    if (hasResult && !isRunning && isExpanded) {
+      const timer = setTimeout(() => {
+        setIsExpanded(false);
+      }, 800); // 800ms delay to briefly show result
+      return () => clearTimeout(timer);
+    }
+  }, [hasResult, isRunning]);
+
   // Generate summary for collapsed view
   const summary = getToolSummary(toolName, args);
 
