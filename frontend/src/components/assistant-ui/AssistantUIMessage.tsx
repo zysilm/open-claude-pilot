@@ -100,7 +100,7 @@ export const AssistantUIMessage: React.FC<AssistantUIMessageProps> = ({
   const userTextContent = role === 'user' ? (block.content?.text || '') : '';
 
   // Build message parts with proper interleaving based on sequence_number
-  const { messageParts, streamingToolParts } = useMemo(() => {
+  const { messageParts } = useMemo(() => {
     const parts: any[] = [];
 
     // For user messages, just return a single text part
@@ -352,18 +352,20 @@ export const AssistantUIMessage: React.FC<AssistantUIMessageProps> = ({
       });
     }
 
-    // Step 7: Convert to final parts format
+    // Step 7: Convert to final parts format (preserving sequenceNumber for ordering)
     for (const sp of sequencedParts) {
       if (sp.type === 'text') {
         parts.push({
           type: 'text',
           content: sp.data.content,
           isStreaming: sp.data.isStreaming,
+          sequenceNumber: sp.sequenceNumber,
         });
       } else {
         parts.push({
           type: 'tool-call',
           ...sp.data,
+          sequenceNumber: sp.sequenceNumber,
         });
       }
     }
@@ -449,6 +451,59 @@ export const AssistantUIMessage: React.FC<AssistantUIMessageProps> = ({
     return null;
   };
 
+  // For step grouping, we need to group consecutive tool calls into ToolStepGroup components
+  // while preserving text block positions in the sequence
+  const renderPartsWithStepGrouping = () => {
+    const result: React.ReactNode[] = [];
+    let currentToolGroup: any[] = [];
+    let toolGroupStartIndex = 0;
+
+    const flushToolGroup = () => {
+      if (currentToolGroup.length > 0) {
+        // Only use ToolStepGroup if we have enough tools to warrant it
+        if (currentToolGroup.length > 2) {
+          // Get the tool blocks for this group
+          const toolBlockIds = new Set(currentToolGroup.map(p => p.toolCallId));
+          const groupToolBlocks = toolBlocks.filter(b => toolBlockIds.has(b.id));
+          result.push(
+            <ToolStepGroup
+              key={`tool-group-${toolGroupStartIndex}`}
+              toolBlocks={groupToolBlocks}
+              streamingTools={currentToolGroup.filter(p => p.toolCallId?.startsWith('streaming-'))}
+              isStreaming={isStreaming}
+            />
+          );
+        } else {
+          // Render individual tools
+          currentToolGroup.forEach((part, i) => {
+            result.push(
+              <DefaultToolFallback key={part.toolCallId || `tool-${toolGroupStartIndex}-${i}`} {...part} />
+            );
+          });
+        }
+        currentToolGroup = [];
+      }
+    };
+
+    messageParts.forEach((part, index) => {
+      if (part.type === 'text') {
+        // Flush any pending tool group before rendering text
+        flushToolGroup();
+        result.push(renderPart(part, index));
+      } else if (part.type === 'tool-call') {
+        if (currentToolGroup.length === 0) {
+          toolGroupStartIndex = index;
+        }
+        currentToolGroup.push(part);
+      }
+    });
+
+    // Flush any remaining tool group
+    flushToolGroup();
+
+    return result;
+  };
+
   return (
     <div className={`message-wrapper ${role}`}>
       <div className="message-content">
@@ -462,20 +517,8 @@ export const AssistantUIMessage: React.FC<AssistantUIMessageProps> = ({
         <div className="message-text">
           <div className="message-body">
             {useStepGrouping ? (
-              <>
-                {/* With step grouping: render text parts inline, tools grouped */}
-                {messageParts.map((part, index) => {
-                  if (part.type === 'text') {
-                    return renderPart(part, index);
-                  }
-                  return null;
-                })}
-                <ToolStepGroup
-                  toolBlocks={toolBlocks}
-                  streamingTools={streamingToolParts}
-                  isStreaming={isStreaming}
-                />
-              </>
+              /* Render parts in sequence, grouping consecutive tools */
+              renderPartsWithStepGrouping()
             ) : (
               /* Render all parts inline in sequence order (text + individual tools) */
               messageParts.map((part, index) => renderPart(part, index))
