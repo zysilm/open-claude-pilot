@@ -86,11 +86,11 @@ Modern React frontend with optimized streaming:
 
 Use any LLM via LiteLLM:
 
-- OpenAI (GPT-4o, GPT-4o-mini)
-- Anthropic (Claude Sonnet 4, Claude Opus 4)
-- Google (Gemini Pro, Gemini Flash)
-- Azure OpenAI
-- Groq, Together, Ollama, and 100+ more
+- OpenAI
+- Anthropic
+- Google Gemini
+- Ollama
+- Groq, Together, and 100+ more
 
 ## Quick Start
 
