@@ -1,7 +1,7 @@
 """Tests for BashTool."""
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from app.core.agent.tools.bash_tool import BashTool
 from app.core.sandbox.container import SandboxContainer
@@ -15,8 +15,7 @@ class TestBashTool:
     def mock_container(self, mock_docker_container):
         """Create a mock SandboxContainer for testing."""
         container = SandboxContainer(
-            container=mock_docker_container,
-            workspace_path="/tmp/test_workspace"
+            container=mock_docker_container, workspace_path="/tmp/test_workspace"
         )
         # Make execute async
         container.execute = AsyncMock(return_value=(0, "output", ""))

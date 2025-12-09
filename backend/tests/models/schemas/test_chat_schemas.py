@@ -107,6 +107,7 @@ class TestChatSessionSchemas:
 
     def test_chat_session_response_from_attributes(self):
         """Test ChatSessionResponse with from_attributes config."""
+
         class MockSession:
             id = "mock-session-id"
             project_id = "mock-project-id"

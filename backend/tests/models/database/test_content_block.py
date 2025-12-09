@@ -1,10 +1,9 @@
 """Tests for ContentBlock database model."""
 
 import pytest
-from datetime import datetime
 from sqlalchemy import select
 
-from app.models.database import ContentBlock, ChatSession
+from app.models.database import ContentBlock
 from app.models.database.content_block import ContentBlockType, ContentBlockAuthor
 
 
@@ -57,9 +56,11 @@ class TestContentBlockModel:
 
         await db_session.commit()
 
-        query = select(ContentBlock).where(
-            ContentBlock.chat_session_id == sample_chat_session.id
-        ).order_by(ContentBlock.sequence_number)
+        query = (
+            select(ContentBlock)
+            .where(ContentBlock.chat_session_id == sample_chat_session.id)
+            .order_by(ContentBlock.sequence_number)
+        )
         result = await db_session.execute(query)
         blocks = result.scalars().all()
 
@@ -174,9 +175,11 @@ class TestContentBlockModel:
         db_session.add_all(blocks)
         await db_session.commit()
 
-        query = select(ContentBlock).where(
-            ContentBlock.chat_session_id == sample_chat_session.id
-        ).order_by(ContentBlock.sequence_number)
+        query = (
+            select(ContentBlock)
+            .where(ContentBlock.chat_session_id == sample_chat_session.id)
+            .order_by(ContentBlock.sequence_number)
+        )
         result = await db_session.execute(query)
         ordered_blocks = result.scalars().all()
 

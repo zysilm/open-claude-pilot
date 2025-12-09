@@ -14,7 +14,9 @@ class TestThinkTool:
         tool = ThinkTool()
 
         assert tool.name == "think"
-        assert "structured thinking" in tool.description.lower() or "think" in tool.description.lower()
+        assert (
+            "structured thinking" in tool.description.lower() or "think" in tool.description.lower()
+        )
         assert len(tool.parameters) == 1
         assert tool.parameters[0].name == "thought"
         assert tool.parameters[0].required is True

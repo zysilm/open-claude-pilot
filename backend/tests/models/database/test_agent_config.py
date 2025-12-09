@@ -3,7 +3,7 @@
 import pytest
 from sqlalchemy import select
 
-from app.models.database import AgentConfiguration, Project
+from app.models.database import AgentConfiguration
 
 
 @pytest.mark.unit

@@ -1,8 +1,7 @@
 """Tests for base Tool classes and ToolRegistry."""
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from app.core.agent.tools.base import (
     Tool,
@@ -122,7 +121,13 @@ class MockTool(Tool):
     def parameters(self):
         return [
             ToolParameter(name="input", type="string", description="Input value", required=True),
-            ToolParameter(name="optional", type="number", description="Optional value", required=False, default=10),
+            ToolParameter(
+                name="optional",
+                type="number",
+                description="Optional value",
+                required=False,
+                default=10,
+            ),
         ]
 
     async def execute(self, input: str, optional: int = 10, **kwargs) -> ToolResult:
@@ -230,6 +235,7 @@ class TestTool:
     @pytest.mark.asyncio
     async def test_validate_and_execute_handles_execution_error(self):
         """Test that execution errors are caught."""
+
         class ErrorTool(MockTool):
             async def execute(self, **kwargs):
                 raise Exception("Execution failed")

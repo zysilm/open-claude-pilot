@@ -15,8 +15,7 @@ class TestFileReadTool:
     def mock_container(self, mock_docker_container):
         """Create a mock SandboxContainer for testing."""
         container = SandboxContainer(
-            container=mock_docker_container,
-            workspace_path="/tmp/test_workspace"
+            container=mock_docker_container, workspace_path="/tmp/test_workspace"
         )
         container.read_file = AsyncMock()
         return container
@@ -123,8 +122,7 @@ class TestFileWriteTool:
     def mock_container(self, mock_docker_container):
         """Create a mock SandboxContainer for testing."""
         container = SandboxContainer(
-            container=mock_docker_container,
-            workspace_path="/tmp/test_workspace"
+            container=mock_docker_container, workspace_path="/tmp/test_workspace"
         )
         container.write_file = AsyncMock(return_value=True)
         return container
@@ -213,10 +211,7 @@ class TestFileWriteTool:
         tool = FileWriteTool(mock_container)
 
         # Filename with path separator should fail validation
-        result = await tool.validate_and_execute(
-            filename="path/to/file.py",
-            content="content"
-        )
+        result = await tool.validate_and_execute(filename="path/to/file.py", content="content")
 
         assert result.success is False
         assert result.is_validation_error is True

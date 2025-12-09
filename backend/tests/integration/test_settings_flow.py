@@ -29,8 +29,7 @@ class TestApiKeyListFlow:
             mock_enc.return_value.encrypt.return_value = b"encrypted_test_key"
 
             await client.post(
-                "/api/v1/settings/api-keys",
-                json={"provider": "openai", "api_key": "sk-test123"}
+                "/api/v1/settings/api-keys", json={"provider": "openai", "api_key": "sk-test123"}
             )
 
         # List keys
@@ -60,7 +59,7 @@ class TestApiKeySetFlow:
 
             response = await client.post(
                 "/api/v1/settings/api-keys",
-                json={"provider": "anthropic", "api_key": "sk-ant-test123"}
+                json={"provider": "anthropic", "api_key": "sk-ant-test123"},
             )
 
             assert response.status_code == 201
@@ -74,15 +73,13 @@ class TestApiKeySetFlow:
             # First creation
             mock_enc.return_value.encrypt.return_value = b"old_encrypted_key"
             await client.post(
-                "/api/v1/settings/api-keys",
-                json={"provider": "azure", "api_key": "old-key"}
+                "/api/v1/settings/api-keys", json={"provider": "azure", "api_key": "old-key"}
             )
 
             # Update
             mock_enc.return_value.encrypt.return_value = b"new_encrypted_key"
             response = await client.post(
-                "/api/v1/settings/api-keys",
-                json={"provider": "azure", "api_key": "new-key"}
+                "/api/v1/settings/api-keys", json={"provider": "azure", "api_key": "new-key"}
             )
 
             assert response.status_code == 201
@@ -99,7 +96,7 @@ class TestApiKeySetFlow:
 
                 response = await client.post(
                     "/api/v1/settings/api-keys",
-                    json={"provider": provider, "api_key": f"sk-{provider}-test"}
+                    json={"provider": provider, "api_key": f"sk-{provider}-test"},
                 )
                 assert response.status_code == 201
 
@@ -117,8 +114,7 @@ class TestApiKeySetFlow:
             mock_enc.return_value.encrypt.side_effect = Exception("Encryption failed")
 
             response = await client.post(
-                "/api/v1/settings/api-keys",
-                json={"provider": "openai", "api_key": "sk-test"}
+                "/api/v1/settings/api-keys", json={"provider": "openai", "api_key": "sk-test"}
             )
 
             assert response.status_code == 400
@@ -144,7 +140,7 @@ class TestApiKeyDeleteFlow:
 
             await client.post(
                 "/api/v1/settings/api-keys",
-                json={"provider": "delete_test", "api_key": "sk-delete-me"}
+                json={"provider": "delete_test", "api_key": "sk-delete-me"},
             )
 
         # Delete the key
@@ -171,7 +167,7 @@ class TestApiKeyTestFlow:
 
             response = await client.post(
                 "/api/v1/settings/api-keys/test",
-                json={"provider": "openai", "api_key": "sk-valid-test-key"}
+                json={"provider": "openai", "api_key": "sk-valid-test-key"},
             )
 
             assert response.status_code == 200
@@ -188,7 +184,7 @@ class TestApiKeyTestFlow:
 
             response = await client.post(
                 "/api/v1/settings/api-keys/test",
-                json={"provider": "openai", "api_key": "sk-invalid-key"}
+                json={"provider": "openai", "api_key": "sk-invalid-key"},
             )
 
             assert response.status_code == 200
@@ -209,7 +205,7 @@ class TestApiKeyTestFlow:
 
                 response = await client.post(
                     "/api/v1/settings/api-keys/test",
-                    json={"provider": provider, "api_key": f"sk-{provider}-test"}
+                    json={"provider": provider, "api_key": f"sk-{provider}-test"},
                 )
 
                 assert response.status_code == 200
@@ -229,8 +225,7 @@ class TestApiKeyWorkflow:
             # 1. Create API key
             mock_enc.return_value.encrypt.return_value = b"initial_key"
             create_resp = await client.post(
-                "/api/v1/settings/api-keys",
-                json={"provider": provider, "api_key": "sk-initial"}
+                "/api/v1/settings/api-keys", json={"provider": provider, "api_key": "sk-initial"}
             )
             assert create_resp.status_code == 201
 
@@ -247,8 +242,7 @@ class TestApiKeyWorkflow:
             mock_provider.return_value = mock_instance
 
             test_resp = await client.post(
-                "/api/v1/settings/api-keys/test",
-                json={"provider": provider, "api_key": "sk-test"}
+                "/api/v1/settings/api-keys/test", json={"provider": provider, "api_key": "sk-test"}
             )
             assert test_resp.status_code == 200
 
@@ -256,8 +250,7 @@ class TestApiKeyWorkflow:
         with patch("app.api.routes.settings.get_encryption_service") as mock_enc:
             mock_enc.return_value.encrypt.return_value = b"updated_key"
             update_resp = await client.post(
-                "/api/v1/settings/api-keys",
-                json={"provider": provider, "api_key": "sk-updated"}
+                "/api/v1/settings/api-keys", json={"provider": provider, "api_key": "sk-updated"}
             )
             assert update_resp.status_code == 201
 
@@ -282,14 +275,12 @@ class TestApiKeyProviderIsolation:
             # Create keys for two providers
             mock_enc.return_value.encrypt.return_value = b"key1"
             await client.post(
-                "/api/v1/settings/api-keys",
-                json={"provider": "provider_a", "api_key": "sk-a"}
+                "/api/v1/settings/api-keys", json={"provider": "provider_a", "api_key": "sk-a"}
             )
 
             mock_enc.return_value.encrypt.return_value = b"key2"
             await client.post(
-                "/api/v1/settings/api-keys",
-                json={"provider": "provider_b", "api_key": "sk-b"}
+                "/api/v1/settings/api-keys", json={"provider": "provider_b", "api_key": "sk-b"}
             )
 
         # Delete only provider_a

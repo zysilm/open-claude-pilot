@@ -20,6 +20,7 @@ def app(db_session):
         yield db_session
 
     from app.core.storage.database import get_db
+
     app.dependency_overrides[get_db] = get_test_db
 
     return app
@@ -78,7 +79,7 @@ class TestApiKeySetAPI:
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     "/api/v1/settings/api-keys",
-                    json={"provider": "openai", "api_key": "sk-test123"}
+                    json={"provider": "openai", "api_key": "sk-test123"},
                 )
 
             assert response.status_code == 201
@@ -110,7 +111,7 @@ class TestApiKeySetAPI:
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     "/api/v1/settings/api-keys",
-                    json={"provider": "anthropic", "api_key": "sk-new-key"}
+                    json={"provider": "anthropic", "api_key": "sk-new-key"},
                 )
 
             assert response.status_code == 201
@@ -130,8 +131,7 @@ class TestApiKeySetAPI:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
-                    "/api/v1/settings/api-keys",
-                    json={"provider": "openai", "api_key": "sk-test"}
+                    "/api/v1/settings/api-keys", json={"provider": "openai", "api_key": "sk-test"}
                 )
 
             assert response.status_code == 400
@@ -192,7 +192,7 @@ class TestApiKeyTestAPI:
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     "/api/v1/settings/api-keys/test",
-                    json={"provider": "openai", "api_key": "sk-valid"}
+                    json={"provider": "openai", "api_key": "sk-valid"},
                 )
 
             assert response.status_code == 200
@@ -211,7 +211,7 @@ class TestApiKeyTestAPI:
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     "/api/v1/settings/api-keys/test",
-                    json={"provider": "openai", "api_key": "sk-invalid"}
+                    json={"provider": "openai", "api_key": "sk-invalid"},
                 )
 
             assert response.status_code == 200
@@ -234,7 +234,7 @@ class TestApiKeyTestAPI:
                 async with AsyncClient(transport=transport, base_url="http://test") as client:
                     response = await client.post(
                         "/api/v1/settings/api-keys/test",
-                        json={"provider": provider, "api_key": f"key-{provider}"}
+                        json={"provider": provider, "api_key": f"key-{provider}"},
                     )
 
                 assert response.status_code == 200

@@ -1,14 +1,12 @@
 """Tests for Projects API routes."""
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import select
 
 from app.api.routes.projects import router
-from app.models.database import Project, AgentConfiguration, ChatSession
+from app.models.database import Project, AgentConfiguration
 
 
 @pytest.fixture
@@ -21,6 +19,7 @@ def app(db_session):
         yield db_session
 
     from app.core.storage.database import get_db
+
     app.dependency_overrides[get_db] = get_test_db
 
     return app
@@ -78,8 +77,7 @@ class TestProjectsAPI:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
-                "/api/v1/projects",
-                json={"name": "New Project", "description": "Test description"}
+                "/api/v1/projects", json={"name": "New Project", "description": "Test description"}
             )
 
         assert response.status_code == 201
@@ -94,18 +92,13 @@ class TestProjectsAPI:
         """Test that creating project also creates agent config."""
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/api/v1/projects",
-                json={"name": "Project with Config"}
-            )
+            response = await client.post("/api/v1/projects", json={"name": "Project with Config"})
 
         assert response.status_code == 201
         project_id = response.json()["id"]
 
         # Check that agent config was created
-        query = select(AgentConfiguration).where(
-            AgentConfiguration.project_id == project_id
-        )
+        query = select(AgentConfiguration).where(AgentConfiguration.project_id == project_id)
         result = await db_session.execute(query)
         config = result.scalar_one_or_none()
 
@@ -140,7 +133,7 @@ class TestProjectsAPI:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.put(
                 f"/api/v1/projects/{sample_project.id}",
-                json={"name": "Updated Name", "description": "Updated description"}
+                json={"name": "Updated Name", "description": "Updated description"},
             )
 
         assert response.status_code == 200
@@ -156,8 +149,7 @@ class TestProjectsAPI:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.put(
-                f"/api/v1/projects/{sample_project.id}",
-                json={"name": "Only Name Updated"}
+                f"/api/v1/projects/{sample_project.id}", json={"name": "Only Name Updated"}
             )
 
         assert response.status_code == 200
@@ -172,8 +164,7 @@ class TestProjectsAPI:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.put(
-                "/api/v1/projects/nonexistent-id",
-                json={"name": "New Name"}
+                "/api/v1/projects/nonexistent-id", json={"name": "New Name"}
             )
 
         assert response.status_code == 404
@@ -214,9 +205,7 @@ class TestAgentConfigAPI:
         """Test getting agent configuration."""
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(
-                f"/api/v1/projects/{sample_project.id}/agent-config"
-            )
+            response = await client.get(f"/api/v1/projects/{sample_project.id}/agent-config")
 
         assert response.status_code == 200
         data = response.json()
@@ -239,10 +228,7 @@ class TestAgentConfigAPI:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.put(
                 f"/api/v1/projects/{sample_project.id}/agent-config",
-                json={
-                    "llm_model": "gpt-4o",
-                    "llm_config": {"temperature": 0.5}
-                }
+                json={"llm_model": "gpt-4o", "llm_config": {"temperature": 0.5}},
             )
 
         assert response.status_code == 200
@@ -262,7 +248,7 @@ class TestChatSessionAPI:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 f"/api/v1/projects/{sample_project.id}/chat-sessions",
-                json={"name": "New Chat Session"}
+                json={"name": "New Chat Session"},
             )
 
         assert response.status_code == 201
@@ -276,8 +262,7 @@ class TestChatSessionAPI:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
-                "/api/v1/projects/nonexistent/chat-sessions",
-                json={"name": "Session"}
+                "/api/v1/projects/nonexistent/chat-sessions", json={"name": "Session"}
             )
 
         assert response.status_code == 404
@@ -287,9 +272,7 @@ class TestChatSessionAPI:
         """Test listing chat sessions for a project."""
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(
-                f"/api/v1/projects/{sample_project.id}/chat-sessions"
-            )
+            response = await client.get(f"/api/v1/projects/{sample_project.id}/chat-sessions")
 
         assert response.status_code == 200
         data = response.json()

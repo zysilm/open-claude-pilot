@@ -190,6 +190,7 @@ class TestGetEncryptionService:
         """Test that get_encryption_service returns singleton."""
         # Reset the global instance
         import app.core.security.encryption as enc_module
+
         enc_module._encryption_service = None
 
         with patch.dict(os.environ, {"MASTER_ENCRYPTION_KEY": encryption_key}):

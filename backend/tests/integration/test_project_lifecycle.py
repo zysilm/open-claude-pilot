@@ -32,10 +32,7 @@ class TestProjectLifecycle:
         """Test creating a new project."""
         response = await client.post(
             "/api/v1/projects",
-            json={
-                "name": "Test Project",
-                "description": "A test project for E2E testing"
-            }
+            json={"name": "Test Project", "description": "A test project for E2E testing"},
         )
 
         assert response.status_code == 201
@@ -50,8 +47,7 @@ class TestProjectLifecycle:
         """Test listing projects after creation."""
         # Create a project first
         await client.post(
-            "/api/v1/projects",
-            json={"name": "List Test Project", "description": "For listing"}
+            "/api/v1/projects", json={"name": "List Test Project", "description": "For listing"}
         )
 
         response = await client.get("/api/v1/projects")
@@ -66,8 +62,7 @@ class TestProjectLifecycle:
         """Test getting a specific project by ID."""
         # Create project
         create_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Get Test Project", "description": "For getting"}
+            "/api/v1/projects", json={"name": "Get Test Project", "description": "For getting"}
         )
         project_id = create_response.json()["id"]
 
@@ -83,15 +78,14 @@ class TestProjectLifecycle:
         """Test updating a project."""
         # Create project
         create_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Update Test Project", "description": "Original"}
+            "/api/v1/projects", json={"name": "Update Test Project", "description": "Original"}
         )
         project_id = create_response.json()["id"]
 
         # Update project
         response = await client.put(
             f"/api/v1/projects/{project_id}",
-            json={"name": "Updated Project", "description": "Modified description"}
+            json={"name": "Updated Project", "description": "Modified description"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -103,15 +97,13 @@ class TestProjectLifecycle:
         """Test partial update of a project (only name)."""
         # Create project
         create_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Partial Update Project", "description": "Keep this"}
+            "/api/v1/projects", json={"name": "Partial Update Project", "description": "Keep this"}
         )
         project_id = create_response.json()["id"]
 
         # Partial update - only name
         response = await client.put(
-            f"/api/v1/projects/{project_id}",
-            json={"name": "New Name Only"}
+            f"/api/v1/projects/{project_id}", json={"name": "New Name Only"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -123,8 +115,7 @@ class TestProjectLifecycle:
         """Test deleting a project."""
         # Create project
         create_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Delete Test Project", "description": "To be deleted"}
+            "/api/v1/projects", json={"name": "Delete Test Project", "description": "To be deleted"}
         )
         project_id = create_response.json()["id"]
 
@@ -149,7 +140,7 @@ class TestProjectLifecycle:
         for i in range(5):
             await client.post(
                 "/api/v1/projects",
-                json={"name": f"Pagination Project {i}", "description": f"Project {i}"}
+                json={"name": f"Pagination Project {i}", "description": f"Project {i}"},
             )
 
         # Test pagination
@@ -170,10 +161,7 @@ class TestProjectWithAgentConfig:
         # Create project (agent_config is NOT sent in request - it's auto-created)
         response = await client.post(
             "/api/v1/projects",
-            json={
-                "name": "AI Project",
-                "description": "Project with auto-created agent config"
-            }
+            json={"name": "AI Project", "description": "Project with auto-created agent config"},
         )
 
         assert response.status_code == 201
@@ -194,8 +182,7 @@ class TestProjectWithAgentConfig:
         """Test getting agent configuration for a project."""
         # Create project (agent config auto-created with defaults)
         create_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Config Test Project"}
+            "/api/v1/projects", json={"name": "Config Test Project"}
         )
         project_id = create_response.json()["id"]
 
@@ -212,18 +199,14 @@ class TestProjectWithAgentConfig:
         """Test updating agent configuration."""
         # Create project (gets default config)
         create_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Update Config Project"}
+            "/api/v1/projects", json={"name": "Update Config Project"}
         )
         project_id = create_response.json()["id"]
 
         # Update agent config
         response = await client.put(
             f"/api/v1/projects/{project_id}/agent-config",
-            json={
-                "llm_model": "gpt-4o",
-                "llm_config": {"temperature": 0.5, "max_tokens": 2000}
-            }
+            json={"llm_model": "gpt-4o", "llm_config": {"temperature": 0.5, "max_tokens": 2000}},
         )
         assert response.status_code == 200
         data = response.json()
@@ -238,16 +221,12 @@ class TestChatSessionManagement:
     async def test_create_chat_session(self, client: AsyncClient):
         """Test creating a chat session for a project."""
         # Create project first
-        project_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Chat Project"}
-        )
+        project_response = await client.post("/api/v1/projects", json={"name": "Chat Project"})
         project_id = project_response.json()["id"]
 
         # Create chat session
         response = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Test Chat Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Test Chat Session"}
         )
 
         assert response.status_code == 201
@@ -260,17 +239,13 @@ class TestChatSessionManagement:
     async def test_list_project_sessions(self, client: AsyncClient):
         """Test listing chat sessions for a project."""
         # Create project
-        project_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Sessions Project"}
-        )
+        project_response = await client.post("/api/v1/projects", json={"name": "Sessions Project"})
         project_id = project_response.json()["id"]
 
         # Create multiple sessions
         for i in range(3):
             await client.post(
-                f"/api/v1/projects/{project_id}/chat-sessions",
-                json={"name": f"Session {i}"}
+                f"/api/v1/projects/{project_id}/chat-sessions", json={"name": f"Session {i}"}
             )
 
         # List sessions
@@ -285,15 +260,13 @@ class TestChatSessionManagement:
         """Test getting a specific chat session."""
         # Create project
         project_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Get Session Project"}
+            "/api/v1/projects", json={"name": "Get Session Project"}
         )
         project_id = project_response.json()["id"]
 
         # Create session
         session_response = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Get Test Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Get Test Session"}
         )
         session_id = session_response.json()["id"]
 
@@ -309,21 +282,18 @@ class TestChatSessionManagement:
         """Test updating a chat session."""
         # Create project and session
         project_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Update Session Project"}
+            "/api/v1/projects", json={"name": "Update Session Project"}
         )
         project_id = project_response.json()["id"]
 
         session_response = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Original Session Name"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Original Session Name"}
         )
         session_id = session_response.json()["id"]
 
         # Update session
         response = await client.put(
-            f"/api/v1/chats/{session_id}",
-            json={"name": "Updated Session Name"}
+            f"/api/v1/chats/{session_id}", json={"name": "Updated Session Name"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -334,14 +304,12 @@ class TestChatSessionManagement:
         """Test deleting a chat session."""
         # Create project and session
         project_response = await client.post(
-            "/api/v1/projects",
-            json={"name": "Delete Session Project"}
+            "/api/v1/projects", json={"name": "Delete Session Project"}
         )
         project_id = project_response.json()["id"]
 
         session_response = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "To Be Deleted"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "To Be Deleted"}
         )
         session_id = session_response.json()["id"]
 
@@ -364,10 +332,7 @@ class TestCompleteProjectWorkflow:
         # 1. Create project (agent config is auto-created with defaults)
         project_response = await client.post(
             "/api/v1/projects",
-            json={
-                "name": "Full Workflow Project",
-                "description": "Complete E2E test"
-            }
+            json={"name": "Full Workflow Project", "description": "Complete E2E test"},
         )
         assert project_response.status_code == 201
         project_id = project_response.json()["id"]
@@ -382,7 +347,7 @@ class TestCompleteProjectWorkflow:
         for i in range(3):
             session_resp = await client.post(
                 f"/api/v1/projects/{project_id}/chat-sessions",
-                json={"name": f"Workflow Session {i}"}
+                json={"name": f"Workflow Session {i}"},
             )
             assert session_resp.status_code == 201
             session_ids.append(session_resp.json()["id"])
@@ -395,7 +360,7 @@ class TestCompleteProjectWorkflow:
         # 5. Update project
         update_resp = await client.put(
             f"/api/v1/projects/{project_id}",
-            json={"name": "Updated Workflow Project", "description": "Modified"}
+            json={"name": "Updated Workflow Project", "description": "Modified"},
         )
         assert update_resp.status_code == 200
 

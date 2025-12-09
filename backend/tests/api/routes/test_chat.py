@@ -7,7 +7,7 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy import select
 
 from app.api.routes.chat import router, WorkspaceFile, WorkspaceFilesResponse
-from app.models.database import ChatSession, Project, ContentBlock, File
+from app.models.database import ChatSession, Project, ContentBlock
 from app.models.database.content_block import ContentBlockType, ContentBlockAuthor
 
 
@@ -21,6 +21,7 @@ def app(db_session):
         yield db_session
 
     from app.core.storage.database import get_db
+
     app.dependency_overrides[get_db] = get_test_db
 
     return app
@@ -55,7 +56,9 @@ class TestChatSessionAPI:
         assert any(s["id"] == sample_chat_session.id for s in data["chat_sessions"])
 
     @pytest.mark.asyncio
-    async def test_list_chat_sessions_filter_by_project(self, app, db_session, sample_project, sample_chat_session):
+    async def test_list_chat_sessions_filter_by_project(
+        self, app, db_session, sample_project, sample_chat_session
+    ):
         """Test filtering chat sessions by project."""
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -72,8 +75,7 @@ class TestChatSessionAPI:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
-                f"/api/v1/chats?project_id={sample_project.id}",
-                json={"name": "New Chat Session"}
+                f"/api/v1/chats?project_id={sample_project.id}", json={"name": "New Chat Session"}
             )
 
         assert response.status_code == 201
@@ -87,8 +89,7 @@ class TestChatSessionAPI:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
-                "/api/v1/chats?project_id=nonexistent",
-                json={"name": "Session"}
+                "/api/v1/chats?project_id=nonexistent", json={"name": "Session"}
             )
 
         assert response.status_code == 404
@@ -120,8 +121,7 @@ class TestChatSessionAPI:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.put(
-                f"/api/v1/chats/{sample_chat_session.id}",
-                json={"name": "Updated Name"}
+                f"/api/v1/chats/{sample_chat_session.id}", json={"name": "Updated Name"}
             )
 
         assert response.status_code == 200
@@ -133,10 +133,7 @@ class TestChatSessionAPI:
         """Test updating non-existent chat session."""
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.put(
-                "/api/v1/chats/nonexistent-id",
-                json={"name": "New Name"}
-            )
+            response = await client.put("/api/v1/chats/nonexistent-id", json={"name": "New Name"})
 
         assert response.status_code == 404
 
@@ -190,7 +187,9 @@ class TestContentBlocksAPI:
         for i in range(3):
             block = ContentBlock(
                 chat_session_id=sample_chat_session.id,
-                block_type=ContentBlockType.USER_TEXT if i % 2 == 0 else ContentBlockType.ASSISTANT_TEXT,
+                block_type=(
+                    ContentBlockType.USER_TEXT if i % 2 == 0 else ContentBlockType.ASSISTANT_TEXT
+                ),
                 author=ContentBlockAuthor.USER if i % 2 == 0 else ContentBlockAuthor.ASSISTANT,
                 content={"text": f"Test content {i}"},
                 sequence_number=i,
@@ -232,9 +231,7 @@ class TestContentBlocksAPI:
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(
-                f"/api/v1/chats/{sample_chat_session.id}/blocks/{block.id}"
-            )
+            response = await client.get(f"/api/v1/chats/{sample_chat_session.id}/blocks/{block.id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -287,7 +284,9 @@ class TestWorkspaceFilesAPI:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_get_workspace_file_content_invalid_path(self, app, db_session, sample_chat_session):
+    async def test_get_workspace_file_content_invalid_path(
+        self, app, db_session, sample_chat_session
+    ):
         """Test getting file content with invalid path."""
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -299,7 +298,9 @@ class TestWorkspaceFilesAPI:
         assert "workspace" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_get_workspace_file_content_file_not_found(self, app, db_session, sample_chat_session):
+    async def test_get_workspace_file_content_file_not_found(
+        self, app, db_session, sample_chat_session
+    ):
         """Test getting content of non-existent file."""
         with patch("app.api.routes.chat.get_container_manager") as mock_manager:
             mock_container = MagicMock()
@@ -354,7 +355,9 @@ class TestWorkspaceFilesAPI:
             assert "attachment" in response.headers.get("content-disposition", "")
 
     @pytest.mark.asyncio
-    async def test_download_all_workspace_files_no_files(self, app, db_session, sample_chat_session):
+    async def test_download_all_workspace_files_no_files(
+        self, app, db_session, sample_chat_session
+    ):
         """Test downloading all files when none exist."""
         with patch("app.api.routes.chat.get_container_manager") as mock_manager:
             mock_container = MagicMock()
@@ -387,7 +390,9 @@ class TestUploadToProjectAPI:
     """Test cases for Upload to Project API."""
 
     @pytest.mark.asyncio
-    async def test_upload_to_project_invalid_path(self, app, db_session, sample_chat_session, sample_project):
+    async def test_upload_to_project_invalid_path(
+        self, app, db_session, sample_chat_session, sample_project
+    ):
         """Test upload with invalid path."""
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -396,7 +401,7 @@ class TestUploadToProjectAPI:
                 json={
                     "path": "/workspace/project_files/test.txt",  # Not from /workspace/out/
                     "project_id": sample_project.id,
-                }
+                },
             )
 
         assert response.status_code == 400
@@ -412,7 +417,7 @@ class TestUploadToProjectAPI:
                 json={
                     "path": "/workspace/out/test.txt",
                     "project_id": sample_project.id,
-                }
+                },
             )
 
         assert response.status_code == 404
@@ -433,7 +438,7 @@ class TestUploadToProjectAPI:
                 json={
                     "path": "/workspace/out/test.txt",
                     "project_id": other_project.id,  # Wrong project
-                }
+                },
             )
 
         assert response.status_code == 400
@@ -476,7 +481,9 @@ class TestWorkspaceModels:
     def test_workspace_files_response(self):
         """Test WorkspaceFilesResponse model."""
         uploaded = [
-            WorkspaceFile(name="a.py", path="/workspace/project_files/a.py", size=100, type="uploaded"),
+            WorkspaceFile(
+                name="a.py", path="/workspace/project_files/a.py", size=100, type="uploaded"
+            ),
         ]
         output = [
             WorkspaceFile(name="b.txt", path="/workspace/out/b.txt", size=200, type="output"),

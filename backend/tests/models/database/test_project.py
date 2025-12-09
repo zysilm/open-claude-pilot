@@ -81,7 +81,7 @@ class TestProjectModel:
     @pytest.mark.asyncio
     async def test_project_update(self, db_session, sample_project):
         """Test updating a project."""
-        original_updated_at = sample_project.updated_at
+        _original_updated_at = sample_project.updated_at
 
         sample_project.name = "Updated Project Name"
         sample_project.description = "Updated description"
@@ -107,10 +107,7 @@ class TestProjectModel:
     @pytest.mark.asyncio
     async def test_multiple_projects(self, db_session):
         """Test creating multiple projects."""
-        projects = [
-            Project(name=f"Project {i}", description=f"Description {i}")
-            for i in range(5)
-        ]
+        projects = [Project(name=f"Project {i}", description=f"Description {i}") for i in range(5)]
         db_session.add_all(projects)
         await db_session.commit()
 

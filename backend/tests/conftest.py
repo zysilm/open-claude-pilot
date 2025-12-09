@@ -2,19 +2,15 @@
 Pytest configuration and fixtures for the OpenCodex backend test suite.
 """
 
-import asyncio
 import os
 import tempfile
-from datetime import datetime
 from pathlib import Path
 from typing import AsyncGenerator, Generator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 # Set test environment variables before importing app modules
@@ -29,7 +25,6 @@ from app.models.database import (
     ChatSession,
     ContentBlock,
     AgentConfiguration,
-    ApiKey,
     File,
 )
 from app.models.database.chat_session import ChatSessionStatus
@@ -49,6 +44,7 @@ from app.models.database.file import FileType
 # ============================================================================
 # Database Fixtures
 # ============================================================================
+
 
 @pytest_asyncio.fixture
 async def async_engine():
@@ -91,6 +87,7 @@ async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
 # Model Factory Fixtures
 # ============================================================================
 
+
 @pytest_asyncio.fixture
 async def sample_project(db_session: AsyncSession) -> Project:
     """Create a sample project for testing."""
@@ -105,7 +102,9 @@ async def sample_project(db_session: AsyncSession) -> Project:
 
 
 @pytest_asyncio.fixture
-async def sample_agent_config(db_session: AsyncSession, sample_project: Project) -> AgentConfiguration:
+async def sample_agent_config(
+    db_session: AsyncSession, sample_project: Project
+) -> AgentConfiguration:
     """Create a sample agent configuration."""
     config = AgentConfiguration(
         project_id=sample_project.id,
@@ -137,7 +136,9 @@ async def sample_chat_session(db_session: AsyncSession, sample_project: Project)
 
 
 @pytest_asyncio.fixture
-async def sample_content_block(db_session: AsyncSession, sample_chat_session: ChatSession) -> ContentBlock:
+async def sample_content_block(
+    db_session: AsyncSession, sample_chat_session: ChatSession
+) -> ContentBlock:
     """Create a sample content block for testing."""
     block = ContentBlock(
         chat_session_id=sample_chat_session.id,
@@ -175,6 +176,7 @@ async def sample_file(db_session: AsyncSession, sample_project: Project) -> File
 # Mock Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_docker_container():
     """Create a mock Docker container."""
@@ -182,17 +184,15 @@ def mock_docker_container():
     container.id = "test_container_id_12345"
     container.status = "running"
     container.reload = MagicMock()
-    container.exec_run = MagicMock(return_value=MagicMock(
-        exit_code=0,
-        output=(b"stdout output", b"stderr output")
-    ))
+    container.exec_run = MagicMock(
+        return_value=MagicMock(exit_code=0, output=(b"stdout output", b"stderr output"))
+    )
     container.stop = MagicMock()
     container.remove = MagicMock()
     container.put_archive = MagicMock()
-    container.get_archive = MagicMock(return_value=(
-        [b"archive_data"],
-        {"name": "test.txt", "size": 100}
-    ))
+    container.get_archive = MagicMock(
+        return_value=([b"archive_data"], {"name": "test.txt", "size": 100})
+    )
     return container
 
 
@@ -202,8 +202,7 @@ def mock_sandbox_container(mock_docker_container):
     from app.core.sandbox.container import SandboxContainer
 
     container = SandboxContainer(
-        container=mock_docker_container,
-        workspace_path="/tmp/test_workspace"
+        container=mock_docker_container, workspace_path="/tmp/test_workspace"
     )
     return container
 
@@ -212,9 +211,9 @@ def mock_sandbox_container(mock_docker_container):
 def mock_llm_provider():
     """Create a mock LLM provider."""
     provider = MagicMock()
-    provider.generate = AsyncMock(return_value=MagicMock(
-        choices=[MagicMock(message=MagicMock(content="Test response"))]
-    ))
+    provider.generate = AsyncMock(
+        return_value=MagicMock(choices=[MagicMock(message=MagicMock(content="Test response"))])
+    )
     provider.generate_stream = AsyncMock()
     return provider
 
@@ -232,6 +231,7 @@ def mock_container_manager():
 # ============================================================================
 # Temporary File Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def temp_workspace() -> Generator[Path, None, None]:
@@ -255,6 +255,7 @@ def temp_file(temp_workspace: Path) -> Path:
 # Environment Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def clean_env():
     """Provide a clean environment for testing."""
@@ -272,12 +273,14 @@ def clean_env():
 def encryption_key():
     """Provide a valid encryption key for testing."""
     from cryptography.fernet import Fernet
+
     return Fernet.generate_key().decode()
 
 
 # ============================================================================
 # FastAPI Test Client Fixtures
 # ============================================================================
+
 
 @pytest_asyncio.fixture
 async def test_app(async_engine):
@@ -302,6 +305,7 @@ async def test_app(async_engine):
             yield session
 
     from app.core.storage.database import get_db
+
     app.dependency_overrides[get_db] = get_test_db
 
     return app
@@ -311,15 +315,18 @@ async def test_app(async_engine):
 # Helper Functions
 # ============================================================================
 
+
 def create_mock_tool_result(success: bool = True, output: str = "Success", error: str = None):
     """Helper to create a ToolResult for testing."""
     from app.core.agent.tools.base import ToolResult
+
     return ToolResult(success=success, output=output, error=error)
 
 
 # ============================================================================
 # Markers
 # ============================================================================
+
 
 def pytest_configure(config):
     """Configure custom pytest markers."""

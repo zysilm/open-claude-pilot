@@ -15,8 +15,7 @@ class TestLineEditTool:
     def mock_container(self, mock_docker_container):
         """Create a mock SandboxContainer for testing."""
         container = SandboxContainer(
-            container=mock_docker_container,
-            workspace_path="/tmp/test_workspace"
+            container=mock_docker_container, workspace_path="/tmp/test_workspace"
         )
         container.read_file = AsyncMock()
         container.write_file = AsyncMock(return_value=True)
@@ -47,7 +46,7 @@ class TestLineEditTool:
             path="/workspace/out/test.py",
             start_line=2,
             end_line=2,
-            new_content="new_line2"
+            new_content="new_line2",
         )
 
         assert result.success is True
@@ -69,7 +68,7 @@ class TestLineEditTool:
             path="/workspace/out/test.py",
             start_line=2,
             end_line=4,
-            new_content="new_content"
+            new_content="new_content",
         )
 
         assert result.success is True
@@ -86,7 +85,7 @@ class TestLineEditTool:
             command="insert",
             path="/workspace/out/test.py",
             insert_line=1,
-            new_content="inserted_line"
+            new_content="inserted_line",
         )
 
         assert result.success is True
@@ -100,10 +99,7 @@ class TestLineEditTool:
         tool = LineEditTool(mock_container)
 
         result = await tool.execute(
-            command="insert",
-            path="/workspace/out/test.py",
-            insert_line=0,
-            new_content="first_line"
+            command="insert", path="/workspace/out/test.py", insert_line=0, new_content="first_line"
         )
 
         assert result.success is True
@@ -117,10 +113,7 @@ class TestLineEditTool:
         tool = LineEditTool(mock_container)
 
         result = await tool.execute(
-            command="delete",
-            path="/workspace/out/test.py",
-            start_line=2,
-            end_line=4
+            command="delete", path="/workspace/out/test.py", start_line=2, end_line=4
         )
 
         assert result.success is True
@@ -138,7 +131,7 @@ class TestLineEditTool:
             path="/workspace/out/missing.py",
             start_line=1,
             end_line=1,
-            new_content="new"
+            new_content="new",
         )
 
         assert result.success is False
@@ -151,10 +144,7 @@ class TestLineEditTool:
         tool = LineEditTool(mock_container)
 
         result = await tool.execute(
-            command="invalid",
-            path="/workspace/out/test.py",
-            start_line=1,
-            end_line=1
+            command="invalid", path="/workspace/out/test.py", start_line=1, end_line=1
         )
 
         assert result.success is False
@@ -169,7 +159,7 @@ class TestLineEditTool:
         result = await tool.execute(
             command="replace",
             path="/workspace/out/test.py",
-            start_line=1
+            start_line=1,
             # Missing end_line and new_content
         )
 
@@ -184,7 +174,7 @@ class TestLineEditTool:
         result = await tool.execute(
             command="insert",
             path="/workspace/out/test.py",
-            new_content="content"
+            new_content="content",
             # Missing insert_line
         )
 
@@ -202,7 +192,7 @@ class TestLineEditTool:
             path="/workspace/out/test.py",
             start_line=10,
             end_line=12,
-            new_content="new"
+            new_content="new",
         )
 
         assert result.success is False
@@ -221,7 +211,7 @@ class TestLineEditTool:
             start_line=2,
             end_line=2,
             new_content="    return (",  # Incomplete parenthesis
-            auto_indent=False
+            auto_indent=False,
         )
 
         assert result.success is False
@@ -239,7 +229,7 @@ class TestLineEditTool:
             start_line=2,
             end_line=2,
             new_content="return 42",
-            auto_indent=True
+            auto_indent=True,
         )
 
         assert result.success is True
@@ -257,7 +247,7 @@ class TestLineEditTool:
             path="/workspace/project_files/readonly.py",
             start_line=1,
             end_line=1,
-            new_content="new"
+            new_content="new",
         )
 
         assert result.success is False
@@ -274,7 +264,7 @@ class TestLineEditTool:
             path="/workspace/out/test.py",
             start_line=2,
             end_line=2,
-            new_content="new_line2"
+            new_content="new_line2",
         )
 
         assert result.success is True

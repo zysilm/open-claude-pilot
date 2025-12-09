@@ -26,9 +26,10 @@ class TestSettings:
 
     def test_cors_origins_list(self):
         """Test CORS origins parsing."""
-        with patch.dict(os.environ, {
-            "CORS_ORIGINS": "http://localhost:3000,http://localhost:5173,http://example.com"
-        }):
+        with patch.dict(
+            os.environ,
+            {"CORS_ORIGINS": "http://localhost:3000,http://localhost:5173,http://example.com"},
+        ):
             settings = Settings()
             origins = settings.cors_origins_list
 
@@ -39,9 +40,10 @@ class TestSettings:
 
     def test_cors_origins_with_spaces(self):
         """Test CORS origins parsing with spaces."""
-        with patch.dict(os.environ, {
-            "CORS_ORIGINS": "http://localhost:3000, http://localhost:5173 , http://example.com"
-        }):
+        with patch.dict(
+            os.environ,
+            {"CORS_ORIGINS": "http://localhost:3000, http://localhost:5173 , http://example.com"},
+        ):
             settings = Settings()
             origins = settings.cors_origins_list
 
@@ -52,9 +54,9 @@ class TestSettings:
 
     def test_custom_database_url(self):
         """Test custom database URL."""
-        with patch.dict(os.environ, {
-            "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/mydb"
-        }):
+        with patch.dict(
+            os.environ, {"DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/mydb"}
+        ):
             settings = Settings()
             assert settings.database_url == "postgresql+asyncpg://user:pass@localhost/mydb"
 
@@ -66,14 +68,17 @@ class TestSettings:
 
     def test_s3_configuration(self):
         """Test S3 storage configuration."""
-        with patch.dict(os.environ, {
-            "STORAGE_MODE": "s3",
-            "S3_BUCKET_NAME": "my-bucket",
-            "S3_ACCESS_KEY": "AKIAIOSFODNN7EXAMPLE",
-            "S3_SECRET_KEY": "secret123",
-            "S3_ENDPOINT_URL": "http://minio:9000",
-            "S3_REGION": "us-west-2",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "STORAGE_MODE": "s3",
+                "S3_BUCKET_NAME": "my-bucket",
+                "S3_ACCESS_KEY": "AKIAIOSFODNN7EXAMPLE",
+                "S3_SECRET_KEY": "secret123",
+                "S3_ENDPOINT_URL": "http://minio:9000",
+                "S3_REGION": "us-west-2",
+            },
+        ):
             settings = Settings()
 
             assert settings.storage_mode == "s3"
@@ -85,10 +90,13 @@ class TestSettings:
 
     def test_storage_mode_local(self):
         """Test local storage configuration."""
-        with patch.dict(os.environ, {
-            "STORAGE_MODE": "local",
-            "STORAGE_WORKSPACE_BASE": "/custom/workspaces",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "STORAGE_MODE": "local",
+                "STORAGE_WORKSPACE_BASE": "/custom/workspaces",
+            },
+        ):
             settings = Settings()
 
             assert settings.storage_mode == "local"
@@ -96,10 +104,13 @@ class TestSettings:
 
     def test_llm_defaults(self):
         """Test LLM default configuration."""
-        with patch.dict(os.environ, {
-            "DEFAULT_LLM_PROVIDER": "anthropic",
-            "DEFAULT_LLM_MODEL": "claude-3-opus",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "DEFAULT_LLM_PROVIDER": "anthropic",
+                "DEFAULT_LLM_MODEL": "claude-3-opus",
+            },
+        ):
             settings = Settings()
 
             assert settings.default_llm_provider == "anthropic"
@@ -120,10 +131,9 @@ class TestSettings:
 
     def test_case_insensitive(self):
         """Test that environment variables are case insensitive."""
-        with patch.dict(os.environ, {
-            "HOST": "0.0.0.0",
-            "host": "should-be-overridden"  # Lowercase
-        }):
+        with patch.dict(
+            os.environ, {"HOST": "0.0.0.0", "host": "should-be-overridden"}  # Lowercase
+        ):
             settings = Settings()
             # The setting should pick up the value
             assert settings.host in ["0.0.0.0", "should-be-overridden"]

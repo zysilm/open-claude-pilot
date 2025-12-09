@@ -1,13 +1,13 @@
 """Tests for Files API routes."""
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 from fastapi import FastAPI
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import select
 
 from app.api.routes.files import router
-from app.models.database import File, Project
+from app.models.database import File
 
 
 @pytest.fixture
@@ -20,6 +20,7 @@ def app(db_session):
         yield db_session
 
     from app.core.storage.database import get_db
+
     app.dependency_overrides[get_db] = get_test_db
 
     return app
@@ -36,7 +37,7 @@ class TestFilesUploadAPI:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/files/upload/nonexistent",
-                files={"file": ("test.py", b"print('hello')", "text/x-python")}
+                files={"file": ("test.py", b"print('hello')", "text/x-python")},
             )
 
         assert response.status_code == 404
@@ -48,7 +49,7 @@ class TestFilesUploadAPI:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 f"/api/v1/files/upload/{sample_project.id}",
-                files={"file": ("test.exe", b"binary", "application/octet-stream")}
+                files={"file": ("test.exe", b"binary", "application/octet-stream")},
             )
 
         assert response.status_code == 400
@@ -58,8 +59,10 @@ class TestFilesUploadAPI:
     async def test_upload_file_success(self, app, db_session, sample_project):
         """Test successful file upload."""
         # Mock file manager and project storage
-        with patch("app.api.routes.files.get_file_manager") as mock_fm, \
-             patch("app.api.routes.files.get_project_volume_storage") as mock_pv:
+        with (
+            patch("app.api.routes.files.get_file_manager") as mock_fm,
+            patch("app.api.routes.files.get_project_volume_storage") as mock_pv,
+        ):
 
             mock_fm.return_value.save_file.return_value = ("files/test.py", 100, "abc123")
             mock_pv.return_value.write_file = AsyncMock()
@@ -68,7 +71,7 @@ class TestFilesUploadAPI:
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     f"/api/v1/files/upload/{sample_project.id}",
-                    files={"file": ("test.py", b"print('hello')", "text/x-python")}
+                    files={"file": ("test.py", b"print('hello')", "text/x-python")},
                 )
 
             assert response.status_code == 201
@@ -185,8 +188,10 @@ class TestFilesDeleteAPI:
         await db_session.commit()
         await db_session.refresh(file)
 
-        with patch("app.api.routes.files.get_file_manager") as mock_fm, \
-             patch("app.api.routes.files.get_project_volume_storage") as mock_pv:
+        with (
+            patch("app.api.routes.files.get_file_manager") as mock_fm,
+            patch("app.api.routes.files.get_project_volume_storage") as mock_pv,
+        ):
 
             mock_fm.return_value.delete_file.return_value = None
             mock_pv.return_value.delete_file = AsyncMock()

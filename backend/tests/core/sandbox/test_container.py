@@ -1,8 +1,7 @@
 """Tests for SandboxContainer."""
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-import asyncio
+from unittest.mock import MagicMock
 
 from app.core.sandbox.container import SandboxContainer
 
@@ -14,8 +13,7 @@ class TestSandboxContainer:
     def test_init(self, mock_docker_container):
         """Test container initialization."""
         container = SandboxContainer(
-            container=mock_docker_container,
-            workspace_path="/tmp/test_workspace"
+            container=mock_docker_container, workspace_path="/tmp/test_workspace"
         )
 
         assert container.container == mock_docker_container
@@ -48,8 +46,7 @@ class TestSandboxContainer:
     async def test_execute_success(self, mock_docker_container):
         """Test executing command successfully."""
         mock_docker_container.exec_run.return_value = MagicMock(
-            exit_code=0,
-            output=(b"output", b"")
+            exit_code=0, output=(b"output", b"")
         )
         container = SandboxContainer(mock_docker_container, "/tmp/ws")
 
@@ -64,8 +61,7 @@ class TestSandboxContainer:
     async def test_execute_with_stderr(self, mock_docker_container):
         """Test executing command with stderr output."""
         mock_docker_container.exec_run.return_value = MagicMock(
-            exit_code=1,
-            output=(b"", b"error message")
+            exit_code=1, output=(b"", b"error message")
         )
         container = SandboxContainer(mock_docker_container, "/tmp/ws")
 
@@ -79,8 +75,7 @@ class TestSandboxContainer:
     async def test_execute_with_workdir(self, mock_docker_container):
         """Test executing command with custom workdir."""
         mock_docker_container.exec_run.return_value = MagicMock(
-            exit_code=0,
-            output=(b"success", b"")
+            exit_code=0, output=(b"success", b"")
         )
         container = SandboxContainer(mock_docker_container, "/tmp/ws")
 
@@ -107,10 +102,7 @@ class TestSandboxContainer:
         """Test writing file to container."""
         container = SandboxContainer(mock_docker_container, "/tmp/ws")
 
-        success = await container.write_file(
-            "/workspace/out/test.py",
-            "print('Hello')"
-        )
+        success = await container.write_file("/workspace/out/test.py", "print('Hello')")
 
         assert success is True
         mock_docker_container.put_archive.assert_called_once()
@@ -121,10 +113,7 @@ class TestSandboxContainer:
         mock_docker_container.put_archive.side_effect = Exception("Write error")
         container = SandboxContainer(mock_docker_container, "/tmp/ws")
 
-        success = await container.write_file(
-            "/workspace/out/test.py",
-            "content"
-        )
+        success = await container.write_file("/workspace/out/test.py", "content")
 
         assert success is False
 
@@ -136,7 +125,7 @@ class TestSandboxContainer:
 
         # Create a mock tar archive with text content
         tar_bytes = io.BytesIO()
-        tar = tarfile.open(fileobj=tar_bytes, mode='w')
+        tar = tarfile.open(fileobj=tar_bytes, mode="w")
         content = b"print('Hello, World!')"
         tarinfo = tarfile.TarInfo(name="test.py")
         tarinfo.size = len(content)

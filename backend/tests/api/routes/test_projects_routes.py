@@ -4,7 +4,6 @@ Tests template listing, template application, and chat session endpoints.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -98,10 +97,7 @@ class TestProjectTemplateEndpoints:
     async def test_apply_template_to_project(self, client: AsyncClient):
         """Test applying a template to a project's agent configuration."""
         # Create project first
-        create_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Template Test Project"}
-        )
+        create_resp = await client.post("/api/v1/projects", json={"name": "Template Test Project"})
         assert create_resp.status_code == 201
         project_id = create_resp.json()["id"]
 
@@ -124,8 +120,7 @@ class TestProjectTemplateEndpoints:
         """Test applying non-existent template."""
         # Create project first
         create_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Template Test Project 2"}
+            "/api/v1/projects", json={"name": "Template Test Project 2"}
         )
         project_id = create_resp.json()["id"]
 
@@ -142,16 +137,12 @@ class TestProjectChatSessionEndpoints:
     async def test_create_chat_session(self, client: AsyncClient):
         """Test creating a chat session for a project."""
         # Create project
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Session Test Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "Session Test Project"})
         project_id = project_resp.json()["id"]
 
         # Create session
         response = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Test Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Test Session"}
         )
         assert response.status_code == 201
         session = response.json()
@@ -162,25 +153,20 @@ class TestProjectChatSessionEndpoints:
     async def test_create_chat_session_project_not_found(self, client: AsyncClient):
         """Test creating session for non-existent project."""
         response = await client.post(
-            "/api/v1/projects/nonexistent/chat-sessions",
-            json={"name": "Test Session"}
+            "/api/v1/projects/nonexistent/chat-sessions", json={"name": "Test Session"}
         )
         assert response.status_code == 404
 
     async def test_list_project_chat_sessions(self, client: AsyncClient):
         """Test listing chat sessions for a project."""
         # Create project
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "List Sessions Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "List Sessions Project"})
         project_id = project_resp.json()["id"]
 
         # Create multiple sessions
         for i in range(3):
             await client.post(
-                f"/api/v1/projects/{project_id}/chat-sessions",
-                json={"name": f"Session {i}"}
+                f"/api/v1/projects/{project_id}/chat-sessions", json={"name": f"Session {i}"}
             )
 
         # List sessions
@@ -198,23 +184,17 @@ class TestProjectChatSessionEndpoints:
     async def test_list_chat_sessions_pagination(self, client: AsyncClient):
         """Test pagination for chat sessions."""
         # Create project
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Pagination Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "Pagination Project"})
         project_id = project_resp.json()["id"]
 
         # Create 5 sessions
         for i in range(5):
             await client.post(
-                f"/api/v1/projects/{project_id}/chat-sessions",
-                json={"name": f"Session {i}"}
+                f"/api/v1/projects/{project_id}/chat-sessions", json={"name": f"Session {i}"}
             )
 
         # Test pagination
-        response = await client.get(
-            f"/api/v1/projects/{project_id}/chat-sessions?skip=0&limit=2"
-        )
+        response = await client.get(f"/api/v1/projects/{project_id}/chat-sessions?skip=0&limit=2")
         assert response.status_code == 200
         data = response.json()
         assert len(data["chat_sessions"]) == 2
@@ -233,24 +213,19 @@ class TestProjectAgentConfigEndpoints:
     async def test_update_agent_config_not_found(self, client: AsyncClient):
         """Test updating config for non-existent project."""
         response = await client.put(
-            "/api/v1/projects/nonexistent/agent-config",
-            json={"llm_model": "gpt-4o"}
+            "/api/v1/projects/nonexistent/agent-config", json={"llm_model": "gpt-4o"}
         )
         assert response.status_code == 404
 
     async def test_update_agent_config_partial(self, client: AsyncClient):
         """Test partial update of agent configuration."""
         # Create project (auto-creates config)
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Config Update Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "Config Update Project"})
         project_id = project_resp.json()["id"]
 
         # Partial update - only model
         response = await client.put(
-            f"/api/v1/projects/{project_id}/agent-config",
-            json={"llm_model": "gpt-4o"}
+            f"/api/v1/projects/{project_id}/agent-config", json={"llm_model": "gpt-4o"}
         )
         assert response.status_code == 200
         config = response.json()
@@ -261,10 +236,7 @@ class TestProjectAgentConfigEndpoints:
     async def test_update_agent_config_multiple_fields(self, client: AsyncClient):
         """Test updating multiple config fields."""
         # Create project
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Multi Update Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "Multi Update Project"})
         project_id = project_resp.json()["id"]
 
         # Update multiple fields
@@ -274,8 +246,8 @@ class TestProjectAgentConfigEndpoints:
                 "llm_provider": "anthropic",
                 "llm_model": "claude-3-sonnet",
                 "enabled_tools": ["bash", "file_read"],
-                "llm_config": {"temperature": 0.5, "max_tokens": 8000}
-            }
+                "llm_config": {"temperature": 0.5, "max_tokens": 8000},
+            },
         )
         assert response.status_code == 200
         config = response.json()

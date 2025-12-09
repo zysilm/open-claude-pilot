@@ -41,20 +41,14 @@ class TestLLMProvider:
     def test_set_api_key_openai(self):
         """Test setting OpenAI API key in environment."""
         with patch.dict(os.environ, {}, clear=True):
-            provider = LLMProvider(
-                provider="openai",
-                api_key="sk-test-key"
-            )
+            _provider = LLMProvider(provider="openai", api_key="sk-test-key")
             # API key should be set in environment
             assert os.environ.get("OPENAI_API_KEY") == "sk-test-key"
 
     def test_set_api_key_anthropic(self):
         """Test setting Anthropic API key in environment."""
         with patch.dict(os.environ, {}, clear=True):
-            provider = LLMProvider(
-                provider="anthropic",
-                api_key="sk-ant-test-key"
-            )
+            _provider = LLMProvider(provider="anthropic", api_key="sk-ant-test-key")
             assert os.environ.get("ANTHROPIC_API_KEY") == "sk-ant-test-key"
 
     def test_build_model_name_openai(self):
@@ -81,9 +75,7 @@ class TestLLMProvider:
         with patch("app.core.llm.provider.acompletion", new_callable=AsyncMock) as mock_acompletion:
             mock_acompletion.return_value = mock_response
 
-            response = await provider.generate(
-                messages=[{"role": "user", "content": "Hello"}]
-            )
+            response = await provider.generate(messages=[{"role": "user", "content": "Hello"}])
 
             assert response == mock_response
             mock_acompletion.assert_called_once()
@@ -94,10 +86,7 @@ class TestLLMProvider:
         provider = LLMProvider()
 
         with patch("app.core.llm.provider.acompletion", new_callable=AsyncMock) as mock_acompletion:
-            await provider.generate(
-                messages=[{"role": "user", "content": "Hello"}],
-                stream=True
-            )
+            await provider.generate(messages=[{"role": "user", "content": "Hello"}], stream=True)
 
             call_kwargs = mock_acompletion.call_args.kwargs
             assert call_kwargs["stream"] is True
@@ -168,8 +157,7 @@ class TestLLMProvider:
             tools = [{"type": "function", "function": {"name": "test_tool"}}]
             chunks = []
             async for chunk in provider.generate_stream(
-                messages=[{"role": "user", "content": "Hello"}],
-                tools=tools
+                messages=[{"role": "user", "content": "Hello"}], tools=tools
             ):
                 chunks.append(chunk)
 
@@ -185,10 +173,7 @@ class TestCreateLLMProvider:
     def test_create_llm_provider(self):
         """Test creating LLM provider with factory function."""
         provider = create_llm_provider(
-            provider="openai",
-            model="gpt-4o",
-            llm_config={"temperature": 0.5},
-            api_key="test-key"
+            provider="openai", model="gpt-4o", llm_config={"temperature": 0.5}, api_key="test-key"
         )
 
         assert provider.provider == "openai"
@@ -198,11 +183,7 @@ class TestCreateLLMProvider:
 
     def test_create_llm_provider_without_key(self):
         """Test creating LLM provider without API key."""
-        provider = create_llm_provider(
-            provider="openai",
-            model="gpt-4o",
-            llm_config={}
-        )
+        provider = create_llm_provider(provider="openai", model="gpt-4o", llm_config={})
 
         assert provider.api_key is None
 
@@ -215,11 +196,7 @@ class TestCreateLLMProviderWithDB:
     async def test_with_explicit_api_key(self, db_session):
         """Test with explicitly provided API key."""
         provider = await create_llm_provider_with_db(
-            provider="openai",
-            model="gpt-4o",
-            llm_config={},
-            db=db_session,
-            api_key="explicit-key"
+            provider="openai", model="gpt-4o", llm_config={}, db=db_session, api_key="explicit-key"
         )
 
         assert provider.api_key == "explicit-key"
@@ -228,10 +205,7 @@ class TestCreateLLMProviderWithDB:
     async def test_fallback_without_db_key(self, db_session):
         """Test fallback when no DB key exists."""
         provider = await create_llm_provider_with_db(
-            provider="openai",
-            model="gpt-4o",
-            llm_config={},
-            db=db_session
+            provider="openai", model="gpt-4o", llm_config={}, db=db_session
         )
 
         # Should return provider without API key (will use env var)

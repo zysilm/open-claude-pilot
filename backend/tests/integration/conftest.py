@@ -4,7 +4,6 @@ Provides a fully configured FastAPI test client with real database.
 """
 
 import os
-import asyncio
 import tempfile
 from pathlib import Path
 from typing import AsyncGenerator
@@ -23,7 +22,6 @@ os.environ["CORS_ORIGINS"] = "http://localhost:3000,http://localhost:5173"
 from fastapi import FastAPI
 from app.core.storage.database import Base, get_db
 from app.api.routes import projects, chat, sandbox, files, settings as settings_routes
-from app.api.websocket.streaming_manager import streaming_manager
 
 
 # Note: event_loop fixture is now handled by pytest-asyncio automatically

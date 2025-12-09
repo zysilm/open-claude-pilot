@@ -2,7 +2,7 @@
 
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from app.core.agent.executor import ReActAgent, AgentStep, AgentResponse
 from app.core.agent.tools.base import Tool, ToolRegistry, ToolResult, ToolParameter
@@ -230,6 +230,7 @@ class TestReActAgent:
     @pytest.mark.asyncio
     async def test_run_simple_response(self, mock_llm_provider, mock_tool_registry):
         """Test run with simple text response (no tool call)."""
+
         # Mock LLM to return simple text chunks
         async def mock_generate_stream(**kwargs):
             yield "Hello, "
@@ -353,6 +354,7 @@ class TestReActAgent:
     @pytest.mark.asyncio
     async def test_run_with_conversation_history(self, mock_llm_provider, mock_tool_registry):
         """Test run with conversation history."""
+
         async def mock_generate_stream(**kwargs):
             messages = kwargs.get("messages", [])
             # Should have system + history + user message
@@ -380,6 +382,7 @@ class TestReActAgent:
     @pytest.mark.asyncio
     async def test_run_with_llm_error(self, mock_llm_provider, mock_tool_registry):
         """Test run handles LLM errors gracefully."""
+
         async def mock_generate_stream(**kwargs):
             raise Exception("LLM API Error")
             yield  # Make it a generator
@@ -553,8 +556,14 @@ class TestReActAgent:
             call_count += 1
             if call_count == 1:
                 # Return two tool calls at different indices
-                yield {"function_call": {"name": "bash", "arguments": '{"input": "ls"}'}, "index": 0}
-                yield {"function_call": {"name": "file_read", "arguments": '{"path": "/test"}'}, "index": 1}
+                yield {
+                    "function_call": {"name": "bash", "arguments": '{"input": "ls"}'},
+                    "index": 0,
+                }
+                yield {
+                    "function_call": {"name": "file_read", "arguments": '{"path": "/test"}'},
+                    "index": 1,
+                }
             else:
                 yield "Done"
 

@@ -2,8 +2,7 @@
 
 import pytest
 import asyncio
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock
 
 from app.api.websocket.streaming_manager import StreamingManager
 
@@ -59,9 +58,7 @@ class TestStreamingManagerRegister:
         cleanup_callback = AsyncMock()
 
         await manager.register_stream(
-            session_id="session-123",
-            message_id="msg-456",
-            cleanup_callback=cleanup_callback
+            session_id="session-123", message_id="msg-456", cleanup_callback=cleanup_callback
         )
 
         assert "session-123" in manager.active_streams
@@ -79,9 +76,7 @@ class TestStreamingManagerRegister:
 
         for i in range(3):
             await manager.register_stream(
-                session_id=f"session-{i}",
-                message_id=f"msg-{i}",
-                cleanup_callback=AsyncMock()
+                session_id=f"session-{i}", message_id=f"msg-{i}", cleanup_callback=AsyncMock()
             )
 
         assert len(manager.active_streams) == 3
@@ -97,9 +92,7 @@ class TestStreamingManagerActivity:
         """Test updating stream activity."""
         manager = StreamingManager()
         await manager.register_stream(
-            session_id="session-123",
-            message_id="msg-456",
-            cleanup_callback=AsyncMock()
+            session_id="session-123", message_id="msg-456", cleanup_callback=AsyncMock()
         )
 
         original_time = manager.active_streams["session-123"]["last_activity"]
@@ -124,9 +117,7 @@ class TestStreamingManagerActivity:
         """Test updating activity without content length."""
         manager = StreamingManager()
         await manager.register_stream(
-            session_id="session-123",
-            message_id="msg-456",
-            cleanup_callback=AsyncMock()
+            session_id="session-123", message_id="msg-456", cleanup_callback=AsyncMock()
         )
 
         await manager.update_activity("session-123")
@@ -144,9 +135,7 @@ class TestStreamingManagerFinalized:
         """Test marking stream as finalized."""
         manager = StreamingManager()
         await manager.register_stream(
-            session_id="session-123",
-            message_id="msg-456",
-            cleanup_callback=AsyncMock()
+            session_id="session-123", message_id="msg-456", cleanup_callback=AsyncMock()
         )
 
         assert manager.active_streams["session-123"]["finalized"] is False
@@ -181,9 +170,7 @@ class TestStreamingManagerDisconnect:
         cleanup_callback = AsyncMock()
 
         await manager.register_stream(
-            session_id="session-123",
-            message_id="msg-456",
-            cleanup_callback=cleanup_callback
+            session_id="session-123", message_id="msg-456", cleanup_callback=cleanup_callback
         )
         await manager.mark_finalized("session-123")
 
@@ -202,9 +189,7 @@ class TestStreamingManagerDisconnect:
         cleanup_callback = AsyncMock()
 
         await manager.register_stream(
-            session_id="session-123",
-            message_id="msg-456",
-            cleanup_callback=cleanup_callback
+            session_id="session-123", message_id="msg-456", cleanup_callback=cleanup_callback
         )
 
         # Simulate natural completion happening during wait
@@ -235,9 +220,7 @@ class TestStreamingManagerCleanup:
         cleanup_callback = AsyncMock()
 
         await manager.register_stream(
-            session_id="session-123",
-            message_id="msg-456",
-            cleanup_callback=cleanup_callback
+            session_id="session-123", message_id="msg-456", cleanup_callback=cleanup_callback
         )
 
         await manager._run_cleanup("session-123")
@@ -253,9 +236,7 @@ class TestStreamingManagerCleanup:
         cleanup_callback = AsyncMock(side_effect=Exception("Cleanup error"))
 
         await manager.register_stream(
-            session_id="session-123",
-            message_id="msg-456",
-            cleanup_callback=cleanup_callback
+            session_id="session-123", message_id="msg-456", cleanup_callback=cleanup_callback
         )
 
         # Should not raise
@@ -284,9 +265,7 @@ class TestStreamingManagerConcurrency:
 
         async def register(i):
             await manager.register_stream(
-                session_id=f"session-{i}",
-                message_id=f"msg-{i}",
-                cleanup_callback=AsyncMock()
+                session_id=f"session-{i}", message_id=f"msg-{i}", cleanup_callback=AsyncMock()
             )
 
         # Register 10 streams concurrently
@@ -299,9 +278,7 @@ class TestStreamingManagerConcurrency:
         """Test concurrent activity updates."""
         manager = StreamingManager()
         await manager.register_stream(
-            session_id="session-123",
-            message_id="msg-456",
-            cleanup_callback=AsyncMock()
+            session_id="session-123", message_id="msg-456", cleanup_callback=AsyncMock()
         )
 
         async def update(length):

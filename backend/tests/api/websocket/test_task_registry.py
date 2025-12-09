@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from app.api.websocket.task_registry import (
     AgentTask,
@@ -27,7 +27,7 @@ class TestAgentTask:
             message_id="msg-456",
             cancel_event=cancel_event,
             created_at=datetime.utcnow(),
-            status="running"
+            status="running",
         )
 
         assert agent_task.session_id == "session-123"
@@ -47,7 +47,7 @@ class TestAgentTask:
                 message_id="msg-456",
                 cancel_event=asyncio.Event(),
                 created_at=datetime.utcnow(),
-                status=status
+                status=status,
             )
             assert agent_task.status == status
 
@@ -72,10 +72,7 @@ class TestAgentTaskRegistryBasic:
         cancel_event = asyncio.Event()
 
         await registry.register_task(
-            session_id="session-123",
-            message_id="msg-456",
-            task=task,
-            cancel_event=cancel_event
+            session_id="session-123", message_id="msg-456", task=task, cancel_event=cancel_event
         )
 
         agent_task = await registry.get_task("session-123")
@@ -98,7 +95,7 @@ class TestAgentTaskRegistryBasic:
             session_id="session-123",
             message_id="msg-old",
             task=old_task,
-            cancel_event=old_cancel_event
+            cancel_event=old_cancel_event,
         )
 
         # Register new task for same session
@@ -110,7 +107,7 @@ class TestAgentTaskRegistryBasic:
             session_id="session-123",
             message_id="msg-new",
             task=new_task,
-            cancel_event=new_cancel_event
+            cancel_event=new_cancel_event,
         )
 
         # Old task should be cancelled
@@ -143,10 +140,7 @@ class TestAgentTaskRegistryCancel:
         cancel_event = asyncio.Event()
 
         await registry.register_task(
-            session_id="session-123",
-            message_id="msg-456",
-            task=task,
-            cancel_event=cancel_event
+            session_id="session-123", message_id="msg-456", task=task, cancel_event=cancel_event
         )
 
         result = await registry.cancel_task("session-123")
@@ -168,10 +162,7 @@ class TestAgentTaskRegistryCancel:
         cancel_event = asyncio.Event()
 
         await registry.register_task(
-            session_id="session-123",
-            message_id="msg-456",
-            task=task,
-            cancel_event=cancel_event
+            session_id="session-123", message_id="msg-456", task=task, cancel_event=cancel_event
         )
 
         result = await registry.cancel_task("session-123")
@@ -202,10 +193,7 @@ class TestAgentTaskRegistryStatus:
         cancel_event = asyncio.Event()
 
         await registry.register_task(
-            session_id="session-123",
-            message_id="msg-456",
-            task=task,
-            cancel_event=cancel_event
+            session_id="session-123", message_id="msg-456", task=task, cancel_event=cancel_event
         )
 
         await registry.mark_completed("session-123")
@@ -223,10 +211,7 @@ class TestAgentTaskRegistryStatus:
         cancel_event = asyncio.Event()
 
         await registry.register_task(
-            session_id="session-123",
-            message_id="msg-456",
-            task=task,
-            cancel_event=cancel_event
+            session_id="session-123", message_id="msg-456", task=task, cancel_event=cancel_event
         )
 
         await registry.mark_completed("session-123", status="error")
@@ -255,10 +240,7 @@ class TestAgentTaskRegistryCleanup:
         cancel_event = asyncio.Event()
 
         await registry.register_task(
-            session_id="session-123",
-            message_id="msg-456",
-            task=task,
-            cancel_event=cancel_event
+            session_id="session-123", message_id="msg-456", task=task, cancel_event=cancel_event
         )
 
         await registry.cleanup_task("session-123")
@@ -289,14 +271,14 @@ class TestAgentTaskRegistryCleanup:
             session_id="old-session",
             message_id="msg-old",
             task=old_task,
-            cancel_event=asyncio.Event()
+            cancel_event=asyncio.Event(),
         )
 
         await registry.register_task(
             session_id="recent-session",
             message_id="msg-recent",
             task=recent_task,
-            cancel_event=asyncio.Event()
+            cancel_event=asyncio.Event(),
         )
 
         # Manually set old task's created_at to be old
@@ -322,7 +304,7 @@ class TestAgentTaskRegistryCleanup:
             session_id="old-session",
             message_id="msg-old",
             task=old_task,
-            cancel_event=asyncio.Event()
+            cancel_event=asyncio.Event(),
         )
 
         # Manually set old task's created_at to be old
@@ -351,7 +333,7 @@ class TestAgentTaskRegistryConcurrency:
                 session_id=f"session-{i}",
                 message_id=f"msg-{i}",
                 task=task,
-                cancel_event=asyncio.Event()
+                cancel_event=asyncio.Event(),
             )
 
         # Register 10 tasks concurrently
@@ -375,7 +357,7 @@ class TestAgentTaskRegistryConcurrency:
                 session_id=f"session-{i}",
                 message_id=f"msg-{i}",
                 task=task,
-                cancel_event=asyncio.Event()
+                cancel_event=asyncio.Event(),
             )
 
         async def cancel(i):
@@ -396,6 +378,7 @@ class TestAgentTaskRegistrySingleton:
         """Test that get_agent_task_registry returns the same instance."""
         # Reset singleton for test
         import app.api.websocket.task_registry as module
+
         original = module._agent_task_registry
         module._agent_task_registry = None
 

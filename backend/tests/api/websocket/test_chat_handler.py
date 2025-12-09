@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from app.api.websocket.chat_handler import (
     is_vision_model,
@@ -88,10 +88,7 @@ class TestToolCallState:
     def test_tool_call_state_custom_values(self):
         """Test ToolCallState with custom values."""
         state = ToolCallState(
-            tool_name="file_read",
-            partial_args='{"path": "/tmp"}',
-            step=5,
-            status="running"
+            tool_name="file_read", partial_args='{"path": "/tmp"}', step=5, status="running"
         )
         assert state.tool_name == "file_read"
         assert state.partial_args == '{"path": "/tmp"}'
@@ -122,7 +119,7 @@ class TestStreamState:
             accumulated_content="Hello world",
             streaming=False,
             sequence_number=5,
-            active_tool_call=tool_state
+            active_tool_call=tool_state,
         )
         assert state.accumulated_content == "Hello world"
         assert state.streaming is False
@@ -305,6 +302,7 @@ class TestCreateOrchestrator:
         orchestrator = create_orchestrator(mock_db)
 
         from app.services.message_orchestrator import MessageOrchestrator
+
         assert isinstance(orchestrator, MessageOrchestrator)
 
     @pytest.mark.asyncio

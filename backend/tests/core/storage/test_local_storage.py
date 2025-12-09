@@ -1,9 +1,6 @@
 """Tests for LocalStorage backend."""
 
 import pytest
-from pathlib import Path
-import tempfile
-import asyncio
 
 from app.core.storage.local_storage import LocalStorage
 

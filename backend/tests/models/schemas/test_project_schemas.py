@@ -92,6 +92,7 @@ class TestProjectSchemas:
 
     def test_project_response_from_attributes(self):
         """Test ProjectResponse with from_attributes config."""
+
         # Simulate ORM model
         class MockProject:
             id = "test-id"

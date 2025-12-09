@@ -24,16 +24,15 @@ class TestSandboxStartFlow:
                     "agent_type": "code_agent",
                     "llm_provider": "openai",
                     "llm_model": "gpt-4o-mini",
-                    "enabled_tools": ["bash"]
-                }
-            }
+                    "enabled_tools": ["bash"],
+                },
+            },
         )
         project_id = project_resp.json()["id"]
 
         # Create session
         session_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Sandbox Test Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Sandbox Test Session"}
         )
         session_id = session_resp.json()["id"]
 
@@ -50,15 +49,13 @@ class TestSandboxStartFlow:
         """Test starting sandbox when environment_type is not configured."""
         # Create project - agent config is auto-created but environment_type is None by default
         project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Default Config Project"}
+            "/api/v1/projects", json={"name": "Default Config Project"}
         )
         project_id = project_resp.json()["id"]
 
         # Create session
         session_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Default Config Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Default Config Session"}
         )
         session_id = session_resp.json()["id"]
 
@@ -79,7 +76,7 @@ class TestSandboxStartFlow:
             mock_manager.return_value.create_container = AsyncMock(return_value=mock_container)
 
             # Mock the agent config to have environment_type
-            with patch("sqlalchemy.ext.asyncio.AsyncSession.execute") as mock_execute:
+            with patch("sqlalchemy.ext.asyncio.AsyncSession.execute"):
                 # This is complex - let's skip deep mocking
                 pass
 
@@ -96,15 +93,11 @@ class TestSandboxStopFlow:
     @pytest.fixture
     async def session_id(self, client: AsyncClient) -> str:
         """Create a session for stop tests."""
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Stop Test Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "Stop Test Project"})
         project_id = project_resp.json()["id"]
 
         session_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Stop Test Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Stop Test Session"}
         )
         return session_resp.json()["id"]
 
@@ -166,7 +159,7 @@ class TestSandboxStatusFlow:
             mock_manager.return_value.get_container = AsyncMock(return_value=mock_container)
             mock_manager.return_value.get_container_stats.return_value = {
                 "cpu_percent": 10.5,
-                "memory_mb": 256
+                "memory_mb": 256,
             }
 
             response = await client.get("/api/v1/sandbox/session-123/status")
@@ -200,8 +193,7 @@ class TestSandboxExecuteFlow:
             mock_manager.return_value.get_container = AsyncMock(return_value=None)
 
             response = await client.post(
-                "/api/v1/sandbox/session-123/execute",
-                json={"command": "ls -la"}
+                "/api/v1/sandbox/session-123/execute", json={"command": "ls -la"}
             )
             assert response.status_code == 404
 
@@ -210,16 +202,14 @@ class TestSandboxExecuteFlow:
         """Test successful command execution."""
         with patch("app.api.routes.sandbox.get_container_manager") as mock_manager:
             mock_container = MagicMock()
-            mock_container.execute = AsyncMock(return_value=(
-                0,
-                "file1.py\nfile2.py\nREADME.md",
-                ""
-            ))
+            mock_container.execute = AsyncMock(
+                return_value=(0, "file1.py\nfile2.py\nREADME.md", "")
+            )
             mock_manager.return_value.get_container = AsyncMock(return_value=mock_container)
 
             response = await client.post(
                 "/api/v1/sandbox/session-123/execute",
-                json={"command": "ls", "workdir": "/workspace"}
+                json={"command": "ls", "workdir": "/workspace"},
             )
 
             assert response.status_code == 200
@@ -233,16 +223,11 @@ class TestSandboxExecuteFlow:
         """Test command execution with error."""
         with patch("app.api.routes.sandbox.get_container_manager") as mock_manager:
             mock_container = MagicMock()
-            mock_container.execute = AsyncMock(return_value=(
-                1,
-                "",
-                "command not found"
-            ))
+            mock_container.execute = AsyncMock(return_value=(1, "", "command not found"))
             mock_manager.return_value.get_container = AsyncMock(return_value=mock_container)
 
             response = await client.post(
-                "/api/v1/sandbox/session-123/execute",
-                json={"command": "nonexistent_command"}
+                "/api/v1/sandbox/session-123/execute", json={"command": "nonexistent_command"}
             )
 
             assert response.status_code == 200
@@ -258,8 +243,7 @@ class TestSandboxExecuteFlow:
             mock_manager.return_value.get_container = AsyncMock(return_value=mock_container)
 
             response = await client.post(
-                "/api/v1/sandbox/session-123/execute",
-                json={"command": "ls;rm -rf /"}
+                "/api/v1/sandbox/session-123/execute", json={"command": "ls;rm -rf /"}
             )
 
             assert response.status_code == 400
@@ -287,8 +271,7 @@ class TestSandboxWorkflow:
             mock_manager.return_value.get_container = AsyncMock(return_value=None)
 
             exec1 = await client.post(
-                f"/api/v1/sandbox/{session_id}/execute",
-                json={"command": "echo test"}
+                f"/api/v1/sandbox/{session_id}/execute", json={"command": "echo test"}
             )
             assert exec1.status_code == 404
 
@@ -300,8 +283,7 @@ class TestSandboxWorkflow:
             mock_manager.return_value.get_container = AsyncMock(return_value=mock_container)
 
             exec2 = await client.post(
-                f"/api/v1/sandbox/{session_id}/execute",
-                json={"command": "echo test"}
+                f"/api/v1/sandbox/{session_id}/execute", json={"command": "echo test"}
             )
             assert exec2.status_code == 200
             assert exec2.json()["stdout"] == "test"

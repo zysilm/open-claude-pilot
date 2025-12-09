@@ -2,7 +2,6 @@
 
 import pytest
 from datetime import datetime
-from pydantic import ValidationError
 
 from app.models.schemas.content_block import (
     ContentBlockBase,

@@ -4,11 +4,10 @@ Tests streaming lifecycle, chunk processing, and persistence coordination.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
 from app.services.message_orchestrator import MessageOrchestrator
-from app.services.message_persistence import MessagePersistenceService, PersistenceError
+from app.services.message_persistence import MessagePersistenceService
 from app.services.streaming_buffer import StreamingBuffer, StreamMetadata
 from app.services.event_bus import EventBus, StreamingEvent
 
@@ -50,9 +49,7 @@ def mock_event_bus():
 def orchestrator(mock_persistence, mock_buffer, mock_event_bus):
     """Create an orchestrator with mocked dependencies."""
     return MessageOrchestrator(
-        persistence=mock_persistence,
-        buffer=mock_buffer,
-        event_bus=mock_event_bus
+        persistence=mock_persistence, buffer=mock_buffer, event_bus=mock_event_bus
     )
 
 
@@ -63,9 +60,7 @@ class TestMessageOrchestratorInit:
     def test_init_with_dependencies(self, mock_persistence, mock_buffer, mock_event_bus):
         """Test orchestrator initializes with dependencies."""
         orchestrator = MessageOrchestrator(
-            persistence=mock_persistence,
-            buffer=mock_buffer,
-            event_bus=mock_event_bus
+            persistence=mock_persistence, buffer=mock_buffer, event_bus=mock_event_bus
         )
         assert orchestrator.persistence == mock_persistence
         assert orchestrator.buffer == mock_buffer
@@ -77,12 +72,12 @@ class TestMessageOrchestratorInit:
 class TestStartStreaming:
     """Test start_streaming method."""
 
-    async def test_start_streaming_success(self, orchestrator, mock_persistence, mock_buffer, mock_event_bus):
+    async def test_start_streaming_success(
+        self, orchestrator, mock_persistence, mock_buffer, mock_event_bus
+    ):
         """Test successful streaming start."""
         message_id = await orchestrator.start_streaming(
-            session_id="session-123",
-            role="assistant",
-            metadata={"source": "test"}
+            session_id="session-123", role="assistant", metadata={"source": "test"}
         )
 
         assert message_id == "msg-123"
@@ -131,8 +126,9 @@ class TestProcessChunk:
         mock_buffer.add_chunk.assert_called_with("msg-123", "Hello ")
 
         # Verify CHUNK event was emitted
-        chunk_calls = [c for c in mock_event_bus.emit.call_args_list
-                       if c[0][0] == StreamingEvent.CHUNK]
+        chunk_calls = [
+            c for c in mock_event_bus.emit.call_args_list if c[0][0] == StreamingEvent.CHUNK
+        ]
         assert len(chunk_calls) == 1
         assert chunk_calls[0][0][1]["content"] == "Hello "
 
@@ -143,8 +139,9 @@ class TestProcessChunk:
         await orchestrator.process_chunk("invalid-id", "test")
 
         # Should emit error event
-        error_calls = [c for c in mock_event_bus.emit.call_args_list
-                       if c[0][0] == StreamingEvent.ERROR]
+        error_calls = [
+            c for c in mock_event_bus.emit.call_args_list if c[0][0] == StreamingEvent.ERROR
+        ]
         assert len(error_calls) == 1
 
 
@@ -155,14 +152,14 @@ class TestProcessAction:
     async def test_process_action_streaming(self, orchestrator, mock_event_bus):
         """Test processing streaming action."""
         await orchestrator.process_action(
-            message_id="msg-123",
-            tool="bash",
-            status="streaming",
-            step=1
+            message_id="msg-123", tool="bash", status="streaming", step=1
         )
 
-        action_calls = [c for c in mock_event_bus.emit.call_args_list
-                        if c[0][0] == StreamingEvent.ACTION_STREAMING]
+        action_calls = [
+            c
+            for c in mock_event_bus.emit.call_args_list
+            if c[0][0] == StreamingEvent.ACTION_STREAMING
+        ]
         assert len(action_calls) == 1
         event_data = action_calls[0][0][1]
         assert event_data["tool"] == "bash"
@@ -175,11 +172,14 @@ class TestProcessAction:
             tool="file_read",
             args={"path": "/test.txt"},
             status="complete",
-            step=2
+            step=2,
         )
 
-        action_calls = [c for c in mock_event_bus.emit.call_args_list
-                        if c[0][0] == StreamingEvent.ACTION_COMPLETE]
+        action_calls = [
+            c
+            for c in mock_event_bus.emit.call_args_list
+            if c[0][0] == StreamingEvent.ACTION_COMPLETE
+        ]
         assert len(action_calls) == 1
         event_data = action_calls[0][0][1]
         assert event_data["tool"] == "file_read"
@@ -197,11 +197,12 @@ class TestProcessObservation:
             content="File read successfully",
             success=True,
             metadata={"file": "test.txt"},
-            step=1
+            step=1,
         )
 
-        obs_calls = [c for c in mock_event_bus.emit.call_args_list
-                     if c[0][0] == StreamingEvent.OBSERVATION]
+        obs_calls = [
+            c for c in mock_event_bus.emit.call_args_list if c[0][0] == StreamingEvent.OBSERVATION
+        ]
         assert len(obs_calls) == 1
         event_data = obs_calls[0][0][1]
         assert event_data["content"] == "File read successfully"
@@ -210,13 +211,12 @@ class TestProcessObservation:
     async def test_process_observation_failure(self, orchestrator, mock_event_bus):
         """Test processing failed observation."""
         await orchestrator.process_observation(
-            message_id="msg-123",
-            content="Command failed",
-            success=False
+            message_id="msg-123", content="Command failed", success=False
         )
 
-        obs_calls = [c for c in mock_event_bus.emit.call_args_list
-                     if c[0][0] == StreamingEvent.OBSERVATION]
+        obs_calls = [
+            c for c in mock_event_bus.emit.call_args_list if c[0][0] == StreamingEvent.OBSERVATION
+        ]
         assert len(obs_calls) == 1
         assert obs_calls[0][0][1]["success"] is False
 
@@ -225,7 +225,9 @@ class TestProcessObservation:
 class TestCompleteStreaming:
     """Test complete_streaming method."""
 
-    async def test_complete_streaming_success(self, orchestrator, mock_persistence, mock_buffer, mock_event_bus):
+    async def test_complete_streaming_success(
+        self, orchestrator, mock_persistence, mock_buffer, mock_event_bus
+    ):
         """Test successful streaming completion."""
         # Start streaming first
         await orchestrator.start_streaming(session_id="session-123")
@@ -263,7 +265,9 @@ class TestCompleteStreaming:
         metadata = mock_buffer.end_streaming.return_value
         assert "cancelled" in metadata or mock_buffer.end_streaming.called
 
-    async def test_complete_streaming_persistence_failure(self, orchestrator, mock_persistence, mock_event_bus):
+    async def test_complete_streaming_persistence_failure(
+        self, orchestrator, mock_persistence, mock_event_bus
+    ):
         """Test handling of persistence failure."""
         await orchestrator.start_streaming(session_id="session-123")
         mock_persistence.save_complete_message.return_value = False
@@ -313,8 +317,9 @@ class TestResumeStreaming:
         assert result["is_streaming"] is True
 
         # Verify RESUME event
-        resume_calls = [c for c in mock_event_bus.emit.call_args_list
-                        if c[0][0] == StreamingEvent.RESUME]
+        resume_calls = [
+            c for c in mock_event_bus.emit.call_args_list if c[0][0] == StreamingEvent.RESUME
+        ]
         assert len(resume_calls) == 1
 
     async def test_resume_streaming_no_active_stream(self, orchestrator):

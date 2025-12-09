@@ -24,16 +24,12 @@ class TestChatSessionFlow:
     async def test_create_and_get_session(self, client: AsyncClient):
         """Test creating and retrieving a chat session."""
         # Create project first
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Chat Test Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "Chat Test Project"})
         project_id = project_resp.json()["id"]
 
         # Create session
         session_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Test Chat"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Test Chat"}
         )
         assert session_resp.status_code == 201
         session_id = session_resp.json()["id"]
@@ -47,30 +43,21 @@ class TestChatSessionFlow:
     async def test_filter_sessions_by_project(self, client: AsyncClient):
         """Test filtering chat sessions by project."""
         # Create two projects
-        project1_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Project 1"}
-        )
+        project1_resp = await client.post("/api/v1/projects", json={"name": "Project 1"})
         project1_id = project1_resp.json()["id"]
 
-        project2_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Project 2"}
-        )
+        project2_resp = await client.post("/api/v1/projects", json={"name": "Project 2"})
         project2_id = project2_resp.json()["id"]
 
         # Create sessions in each project
         await client.post(
-            f"/api/v1/projects/{project1_id}/chat-sessions",
-            json={"name": "P1 Session 1"}
+            f"/api/v1/projects/{project1_id}/chat-sessions", json={"name": "P1 Session 1"}
         )
         await client.post(
-            f"/api/v1/projects/{project1_id}/chat-sessions",
-            json={"name": "P1 Session 2"}
+            f"/api/v1/projects/{project1_id}/chat-sessions", json={"name": "P1 Session 2"}
         )
         await client.post(
-            f"/api/v1/projects/{project2_id}/chat-sessions",
-            json={"name": "P2 Session 1"}
+            f"/api/v1/projects/{project2_id}/chat-sessions", json={"name": "P2 Session 1"}
         )
 
         # Filter by project 1
@@ -89,15 +76,11 @@ class TestContentBlocksFlow:
     @pytest.fixture
     async def session_with_project(self, client: AsyncClient):
         """Create a project and session for content block tests."""
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Content Block Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "Content Block Project"})
         project_id = project_resp.json()["id"]
 
         session_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Content Block Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Content Block Session"}
         )
         session_id = session_resp.json()["id"]
 
@@ -129,14 +112,12 @@ class TestWorkspaceFilesFlow:
     async def session_with_project(self, client: AsyncClient):
         """Create a project and session for workspace tests."""
         project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Workspace Test Project"}
+            "/api/v1/projects", json={"name": "Workspace Test Project"}
         )
         project_id = project_resp.json()["id"]
 
         session_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Workspace Test Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Workspace Test Session"}
         )
         session_id = session_resp.json()["id"]
 
@@ -167,7 +148,7 @@ class TestWorkspaceFilesFlow:
         # Path traversal attempt - correct endpoint is /workspace/files/content
         response = await client.get(
             f"/api/v1/chats/{session_id}/workspace/files/content",
-            params={"path": "../../../etc/passwd"}
+            params={"path": "../../../etc/passwd"},
         )
         assert response.status_code == 400
 
@@ -177,8 +158,7 @@ class TestWorkspaceFilesFlow:
         session_id = session_with_project["session_id"]
 
         response = await client.get(
-            f"/api/v1/chats/{session_id}/workspace/download-all",
-            params={"type": "output"}
+            f"/api/v1/chats/{session_id}/workspace/download-all", params={"type": "output"}
         )
         # Should return 404 or empty zip
         assert response.status_code in [200, 404]
@@ -189,8 +169,7 @@ class TestWorkspaceFilesFlow:
         session_id = session_with_project["session_id"]
 
         response = await client.get(
-            f"/api/v1/chats/{session_id}/workspace/download-all",
-            params={"type": "invalid_type"}
+            f"/api/v1/chats/{session_id}/workspace/download-all", params={"type": "invalid_type"}
         )
         assert response.status_code == 400
 
@@ -203,15 +182,11 @@ class TestChatHistoryFlow:
     async def test_session_history_empty(self, client: AsyncClient):
         """Test getting history for a new session."""
         # Create project and session
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "History Test Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "History Test Project"})
         project_id = project_resp.json()["id"]
 
         session_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "History Test Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "History Test Session"}
         )
         session_id = session_resp.json()["id"]
 
@@ -225,21 +200,18 @@ class TestChatHistoryFlow:
         """Test that sessions are isolated from each other."""
         # Create project
         project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Isolation Test Project"}
+            "/api/v1/projects", json={"name": "Isolation Test Project"}
         )
         project_id = project_resp.json()["id"]
 
         # Create two sessions
         session1_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Session 1"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Session 1"}
         )
         session1_id = session1_resp.json()["id"]
 
         session2_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Session 2"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Session 2"}
         )
         session2_id = session2_resp.json()["id"]
 
@@ -262,15 +234,11 @@ class TestSessionStatusFlow:
     async def test_session_default_status(self, client: AsyncClient):
         """Test that new sessions have active status."""
         # Create project and session
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Status Test Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "Status Test Project"})
         project_id = project_resp.json()["id"]
 
         session_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Status Test Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Status Test Session"}
         )
         session_id = session_resp.json()["id"]
 
@@ -284,22 +252,17 @@ class TestSessionStatusFlow:
     async def test_update_session_status(self, client: AsyncClient):
         """Test updating session status."""
         # Create project and session
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Update Status Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "Update Status Project"})
         project_id = project_resp.json()["id"]
 
         session_resp = await client.post(
-            f"/api/v1/projects/{project_id}/chat-sessions",
-            json={"name": "Update Status Session"}
+            f"/api/v1/projects/{project_id}/chat-sessions", json={"name": "Update Status Session"}
         )
         session_id = session_resp.json()["id"]
 
         # Update session with new status
         update_resp = await client.put(
-            f"/api/v1/chats/{session_id}",
-            json={"name": "Updated Session", "status": "archived"}
+            f"/api/v1/chats/{session_id}", json={"name": "Updated Session", "status": "archived"}
         )
         assert update_resp.status_code == 200
         # Check if status is updated (depends on API schema support)
@@ -313,17 +276,13 @@ class TestChatSessionPagination:
     async def test_sessions_pagination(self, client: AsyncClient):
         """Test chat sessions pagination."""
         # Create project
-        project_resp = await client.post(
-            "/api/v1/projects",
-            json={"name": "Pagination Project"}
-        )
+        project_resp = await client.post("/api/v1/projects", json={"name": "Pagination Project"})
         project_id = project_resp.json()["id"]
 
         # Create multiple sessions
         for i in range(10):
             await client.post(
-                f"/api/v1/projects/{project_id}/chat-sessions",
-                json={"name": f"Session {i}"}
+                f"/api/v1/projects/{project_id}/chat-sessions", json={"name": f"Session {i}"}
             )
 
         # Test pagination

@@ -65,10 +65,7 @@ class SetupEnvironmentTool(Tool):
         ]
 
     async def execute(
-        self,
-        environment_type: str,
-        reason: str | None = None,
-        **kwargs
+        self, environment_type: str, reason: str | None = None, **kwargs
     ) -> ToolResult:
         """Set up the sandbox environment.
 
@@ -122,10 +119,7 @@ class SetupEnvironmentTool(Tool):
             update_stmt = (
                 update(ChatSession)
                 .where(ChatSession.id == self._session_id)
-                .values(
-                    environment_type=environment_type,
-                    environment_config={}
-                )
+                .values(environment_type=environment_type, environment_config={})
             )
             await self._db.execute(update_stmt)
             await self._db.commit()
@@ -135,13 +129,13 @@ class SetupEnvironmentTool(Tool):
                 self._session_id,
                 session.project_id,  # Project volume mounted at /workspace/project_files
                 environment_type,
-                {}  # environment_config
+                {},  # environment_config
             )
 
             # Build success message
             output_parts = [
-                f"✓ Sandbox environment set up successfully!",
-                f"",
+                "✓ Sandbox environment set up successfully!",
+                "",
                 f"Environment: {environment_type}",
                 f"Container ID: {container.container.id[:12]}",
                 f"Workspace: {container.workspace_path}",

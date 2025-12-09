@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime
 from sqlalchemy import select
 
-from app.models.database import File, Project
+from app.models.database import File
 from app.models.database.file import FileType
 
 

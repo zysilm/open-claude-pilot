@@ -188,14 +188,8 @@ class TestEventBus:
         bus = EventBus()
 
         # Manually add to history
-        bus._add_to_history(EventData(
-            event_type=StreamingEvent.START,
-            payload={"id": "1"}
-        ))
-        bus._add_to_history(EventData(
-            event_type=StreamingEvent.END,
-            payload={"id": "2"}
-        ))
+        bus._add_to_history(EventData(event_type=StreamingEvent.START, payload={"id": "1"}))
+        bus._add_to_history(EventData(event_type=StreamingEvent.END, payload={"id": "2"}))
 
         history = bus.get_history()
         assert len(history) == 2
@@ -204,18 +198,9 @@ class TestEventBus:
         """Test getting filtered event history."""
         bus = EventBus()
 
-        bus._add_to_history(EventData(
-            event_type=StreamingEvent.START,
-            payload={}
-        ))
-        bus._add_to_history(EventData(
-            event_type=StreamingEvent.CHUNK,
-            payload={}
-        ))
-        bus._add_to_history(EventData(
-            event_type=StreamingEvent.END,
-            payload={}
-        ))
+        bus._add_to_history(EventData(event_type=StreamingEvent.START, payload={}))
+        bus._add_to_history(EventData(event_type=StreamingEvent.CHUNK, payload={}))
+        bus._add_to_history(EventData(event_type=StreamingEvent.END, payload={}))
 
         history = bus.get_history(event_type=StreamingEvent.CHUNK)
         assert len(history) == 1
@@ -226,10 +211,7 @@ class TestEventBus:
         bus = EventBus()
 
         for i in range(10):
-            bus._add_to_history(EventData(
-                event_type=StreamingEvent.CHUNK,
-                payload={"index": i}
-            ))
+            bus._add_to_history(EventData(event_type=StreamingEvent.CHUNK, payload={"index": i}))
 
         history = bus.get_history(limit=5)
         assert len(history) == 5
@@ -240,10 +222,7 @@ class TestEventBus:
         """Test clearing event history."""
         bus = EventBus()
 
-        bus._add_to_history(EventData(
-            event_type=StreamingEvent.START,
-            payload={}
-        ))
+        bus._add_to_history(EventData(event_type=StreamingEvent.START, payload={}))
 
         bus.clear_history()
         assert len(bus._event_history) == 0
@@ -293,10 +272,7 @@ class TestEventBus:
         bus = EventBus()
 
         bus.subscribe(StreamingEvent.START, MagicMock(__name__="test_handler"))
-        bus._add_to_history(EventData(
-            event_type=StreamingEvent.START,
-            payload={}
-        ))
+        bus._add_to_history(EventData(event_type=StreamingEvent.START, payload={}))
 
         bus.reset()
 

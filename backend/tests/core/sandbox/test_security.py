@@ -79,10 +79,10 @@ class TestSanitizeCommand:
         e.g. ';rm -rf', '&&rm -rf', etc.
         """
         dangerous_commands = [
-            "ls;rm -rf /",        # No space after semicolon
+            "ls;rm -rf /",  # No space after semicolon
             "echo test;rm -rf /home",
             "cat file&&rm -rf /",  # No space after &&
-            "ls|rm -rf /tmp",      # No space after |
+            "ls|rm -rf /tmp",  # No space after |
             "$(rm -rf /)",
             "`rm -rf /`",
         ]

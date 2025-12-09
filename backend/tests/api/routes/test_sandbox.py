@@ -5,8 +5,12 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi import FastAPI
 from httpx import AsyncClient, ASGITransport
 
-from app.api.routes.sandbox import router, ExecuteCommandRequest, ExecuteCommandResponse, ContainerStatusResponse
-from app.models.database import ChatSession, Project, AgentConfiguration
+from app.api.routes.sandbox import (
+    router,
+    ExecuteCommandRequest,
+    ExecuteCommandResponse,
+    ContainerStatusResponse,
+)
 
 
 @pytest.fixture
@@ -19,6 +23,7 @@ def app(db_session):
         yield db_session
 
     from app.core.storage.database import get_db
+
     app.dependency_overrides[get_db] = get_test_db
 
     return app
@@ -48,7 +53,9 @@ class TestSandboxStartAPI:
         assert "configuration" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_start_sandbox_success(self, app, db_session, sample_chat_session, sample_agent_config):
+    async def test_start_sandbox_success(
+        self, app, db_session, sample_chat_session, sample_agent_config
+    ):
         """Test successful sandbox start."""
         # The route accesses agent_config.environment_type and environment_config
         # which don't exist in the model - mock them on the config object
@@ -71,7 +78,9 @@ class TestSandboxStartAPI:
             assert data["container_id"] == "container-123"
 
     @pytest.mark.asyncio
-    async def test_start_sandbox_error(self, app, db_session, sample_chat_session, sample_agent_config):
+    async def test_start_sandbox_error(
+        self, app, db_session, sample_chat_session, sample_agent_config
+    ):
         """Test sandbox start failure."""
         # Mock the environment fields needed by the route
         sample_agent_config.environment_type = "python3.13"
@@ -202,8 +211,7 @@ class TestSandboxExecuteAPI:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
-                    "/api/v1/sandbox/session-123/execute",
-                    json={"command": "ls -la"}
+                    "/api/v1/sandbox/session-123/execute", json={"command": "ls -la"}
                 )
 
             assert response.status_code == 404
@@ -220,7 +228,7 @@ class TestSandboxExecuteAPI:
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
                     "/api/v1/sandbox/session-123/execute",
-                    json={"command": "ls -la", "workdir": "/workspace/out"}
+                    json={"command": "ls -la", "workdir": "/workspace/out"},
                 )
 
             assert response.status_code == 200
@@ -238,8 +246,7 @@ class TestSandboxExecuteAPI:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.post(
-                    "/api/v1/sandbox/session-123/execute",
-                    json={"command": "ls;rm -rf /"}
+                    "/api/v1/sandbox/session-123/execute", json={"command": "ls;rm -rf /"}
                 )
 
             assert response.status_code == 400

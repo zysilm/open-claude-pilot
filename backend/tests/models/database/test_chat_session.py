@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime
 from sqlalchemy import select
 
-from app.models.database import ChatSession, Project
+from app.models.database import ChatSession
 from app.models.database.chat_session import ChatSessionStatus
 
 
@@ -123,8 +123,7 @@ class TestChatSessionModel:
     async def test_multiple_chat_sessions_per_project(self, db_session, sample_project):
         """Test creating multiple chat sessions for one project."""
         sessions = [
-            ChatSession(project_id=sample_project.id, name=f"Session {i}")
-            for i in range(3)
+            ChatSession(project_id=sample_project.id, name=f"Session {i}") for i in range(3)
         ]
         db_session.add_all(sessions)
         await db_session.commit()

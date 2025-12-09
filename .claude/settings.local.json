@@ -101,7 +101,9 @@
       "Bash(git -C /Users/ziyang/Documents/open-codex-gui log --oneline -20)",
       "Bash(git -C /Users/ziyang/Documents/open-codex-gui branch:*)",
       "Bash(npm run test:unit:coverage:*)",
-      "Bash(npm run test:unit:*)"
+      "Bash(npm run test:unit:*)",
+      "Bash(poetry run black:*)",
+      "Bash(poetry run ruff:*)"
     ],
     "deny": [],
     "ask": []

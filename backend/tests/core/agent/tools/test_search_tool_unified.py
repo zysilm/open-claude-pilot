@@ -19,8 +19,7 @@ class TestUnifiedSearchTool:
     def mock_container(self, mock_docker_container):
         """Create a mock SandboxContainer for testing."""
         container = SandboxContainer(
-            container=mock_docker_container,
-            workspace_path="/tmp/test_workspace"
+            container=mock_docker_container, workspace_path="/tmp/test_workspace"
         )
         container.execute = AsyncMock(return_value=(0, "", ""))
         return container
@@ -105,10 +104,7 @@ class TestUnifiedSearchTool:
         mock_container.execute.return_value = (1, "", "")
         tool = UnifiedSearchTool(mock_container)
 
-        result = await tool.execute(
-            query="test",
-            path="/workspace/nonexistent"
-        )
+        result = await tool.execute(query="test", path="/workspace/nonexistent")
 
         assert result.success is False
         assert "not found" in result.error.lower()
@@ -124,10 +120,7 @@ class TestUnifiedSearchTool:
         ]
         tool = UnifiedSearchTool(mock_container)
 
-        result = await tool.execute(
-            query="TODO",
-            path="/workspace/out"
-        )
+        result = await tool.execute(query="TODO", path="/workspace/out")
 
         assert result.success is True
         assert result.metadata["mode"] == "text"
@@ -141,10 +134,7 @@ class TestUnifiedSearchTool:
         ]
         tool = UnifiedSearchTool(mock_container)
 
-        result = await tool.execute(
-            query="nonexistent_string",
-            path="/workspace/out"
-        )
+        result = await tool.execute(query="nonexistent_string", path="/workspace/out")
 
         assert result.success is True
         assert "No files found" in result.output
@@ -158,10 +148,7 @@ class TestUnifiedSearchTool:
         ]
         tool = UnifiedSearchTool(mock_container)
 
-        result = await tool.execute(
-            query="*.py",
-            path="/workspace/out"
-        )
+        result = await tool.execute(query="*.py", path="/workspace/out")
 
         assert result.success is True
         assert result.metadata["mode"] == "filename"
@@ -176,10 +163,7 @@ class TestUnifiedSearchTool:
         ]
         tool = UnifiedSearchTool(mock_container)
 
-        result = await tool.execute(
-            query="*.nonexistent",
-            path="/workspace/out"
-        )
+        result = await tool.execute(query="*.nonexistent", path="/workspace/out")
 
         assert result.success is True
         assert "No files found" in result.output
@@ -192,7 +176,7 @@ class TestUnifiedSearchTool:
 
         result = await tool.execute(
             query="functions",
-            path="/workspace/out"
+            path="/workspace/out",
             # No language specified
         )
 
@@ -210,11 +194,7 @@ class TestUnifiedSearchTool:
         ]
         tool = UnifiedSearchTool(mock_container)
 
-        result = await tool.execute(
-            query="functions",
-            language="python",
-            path="/workspace/out"
-        )
+        result = await tool.execute(query="functions", language="python", path="/workspace/out")
 
         # Falls back to text search if ast-grep not available
         assert result.success is True
@@ -228,11 +208,7 @@ class TestUnifiedSearchTool:
         ]
         tool = UnifiedSearchTool(mock_container)
 
-        result = await tool.execute(
-            query="*.py",
-            path="/workspace/out",
-            max_results=10
-        )
+        result = await tool.execute(query="*.py", path="/workspace/out", max_results=10)
 
         assert result.success is True
 
@@ -245,10 +221,10 @@ class TestUnifiedSearchTool:
     def test_parse_ast_results_json_array(self, mock_container):
         """Test parsing JSON array AST results."""
         tool = UnifiedSearchTool(mock_container)
-        json_output = '''[
+        json_output = """[
             {"file": "test.py", "range": {"start": {"line": 10}}, "text": "def foo():"},
             {"file": "test.py", "range": {"start": {"line": 20}}, "text": "def bar():"}
-        ]'''
+        ]"""
         matches = tool._parse_ast_results(json_output, 50)
 
         assert len(matches) == 2
