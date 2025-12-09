@@ -122,9 +122,6 @@ docker-compose up -d
 Create `backend/.env`:
 
 ```bash
-# LLM API Keys (add the ones you use)
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
 
 # Database
 DATABASE_URL=sqlite+aiosqlite:///./data/breezerun.db
