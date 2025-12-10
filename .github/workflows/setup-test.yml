@@ -87,7 +87,7 @@ jobs:
       - name: Test frontend accessibility
         working-directory: frontend
         run: |
-          npx playwright test tests/setup-verification.spec.ts --project=chromium || echo "Playwright test not found, using curl"
+          npx playwright test e2e/setup-verification.spec.ts --project=chromium || echo "Playwright test not found, using curl"
           curl -f http://localhost:5173/ || exit 1
 
   # ============================================
@@ -157,7 +157,7 @@ jobs:
       - name: Test frontend accessibility
         working-directory: frontend
         run: |
-          npx playwright test tests/setup-verification.spec.ts --project=chromium || echo "Playwright test not found, using curl"
+          npx playwright test e2e/setup-verification.spec.ts --project=chromium || echo "Playwright test not found, using curl"
           curl -f http://localhost:5173/ || exit 1
 
   # ============================================
